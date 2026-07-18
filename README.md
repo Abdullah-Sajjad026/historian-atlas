@@ -237,7 +237,20 @@ an attribution caption; everything else is fallback-only.
 
 ## Content status
 
-15 periods, 16 people, 14 events across all seven lanes.
+19 periods, 22 people, 19 events across all seven lanes, under three lenses
+(islamic-history, silk-road, subcontinent).
+Wave 3 added the atlas's first BCE content — the Maurya Empire (c. 322–184
+BCE, all pre-CE years via `bce()`), Ashoka, and the Kalinga War — plus the
+Delhi Sultanate (five dynasties as one period; a documented deepening seam)
+and the Mughals (parentId → delhi-sultanate, the succession sealed by the
+First Battle of Panipat linking both periods), Marco Polo's journey, and two
+new lenses: The Silk Road (periods + Talas + Marco Polo, no people in v1)
+and The Subcontinent (Maurya through the Mughals, Gupta and Aryabhata
+included). Delhi/Mughal entities also joined the islamic-history lens, which
+now spans four lanes. Wave 3 QIDs (ashoka, akbar, mughal-empire only —
+others omitted rather than guessed) are best-effort pending an
+`npm run enrich` tripwire pass.
+
 Wave 2 added: Umayyads of Córdoba (EUROPE lane, child of umayyad-caliphate —
 the succession chain and the Islamic lens now both cross lanes), Mali (Mansa
 Musa's hajj flares in the MENA lane), Song (parentId bridges the Five

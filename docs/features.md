@@ -99,10 +99,21 @@ entries.
 
 Themes are lenses. `theme_memberships` → `getThemeEntityIds` → Sets passed
 to both canvases → `lensAlpha` (pure, tested). Semantics everywhere:
-member = full strength, non-member = ghost, nothing hidden. The
-islamic-history lens currently spans THREE lanes (mena, europe via Córdoba,
-sub-saharan-africa via Mali) and 622–1922 with dual-calendar display
-(`calendarMode: "dual-hijri"` on the theme).
+member = full strength, non-member = ghost, nothing hidden.
+
+Current lenses (defined in `content/spine/index.ts` themeDefs):
+- **islamic-history** — spans FOUR lanes (mena, europe via Córdoba,
+  sub-saharan-africa via Mali, south-asia via Delhi Sultanate + Mughals)
+  and 622–1922 with dual-calendar display (`calendarMode: "dual-hijri"`).
+- **silk-road** — periods only + two events (Talas, Marco Polo's journey);
+  deliberately no people in v1 (membership declared in
+  `silk-road-events.ts`).
+- **subcontinent** — Maurya through the Mughals, incl. Gupta/Aryabhata
+  (memberships declared in the south-asia modules + `world.ts`).
+
+The LensPicker pill row flex-wraps; measured at 380px viewport it takes
+exactly 2 lines with four pills — at the budget, not over it. If a fourth
+lens is added, re-measure before assuming the pill row still fits.
 
 ## Enrichment display
 
@@ -122,6 +133,13 @@ Structural edge cases the format has PROVEN (don't regress them):
 - Disputed/circa dates rendering: Wu Zetian "(disputed)", "c. 570 CE"
 - Succession bridging a gap: song-dynasty parentId → tang-dynasty across
   the Five Dynasties interregnum
+- BCE content: maurya-empire (c. 322–184 BCE via `bce()`) — axis ticks,
+  entity pages, and the globe all render pre-CE years through `formatYear`
+  (note: d3 picks round ASTRONOMICAL ticks, so BCE labels read "301 BCE"
+  rather than "300 BCE" — correct, just off-round; a tick-snapping pass is
+  a future nicety, not a bug)
+- Succession at a hard handoff: mughal-empire parentId → delhi-sultanate,
+  with first-battle-of-panipat (1526) linked to BOTH periods
 
 ## Deliberately open decisions (do not "fix" without a call)
 

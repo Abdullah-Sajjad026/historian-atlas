@@ -11,6 +11,7 @@ import { createCanvas } from "canvas";
 import { writeFileSync } from "node:fs";
 import { scaleLinear } from "d3-scale";
 import { client } from "@/db/client";
+import { bce } from "@/lib/dates";
 import type { PeriodRow, EventRow } from "@/db/queries";
 import { buildLanes, layoutTimeline, type TimelinePerson } from "@/lib/timeline-layout";
 import { drawTimeline, type TimelinePalette } from "@/lib/timeline-draw";
@@ -86,6 +87,7 @@ async function render(width: number, domain: [number, number], out: string) {
 }
 
 async function main() {
+  await render(1200, [bce(400), 100], "/tmp/timeline-bce.png"); // BCE window: axis must say "300 BCE", not "-299"
   await render(1200, [230, 1950], "/tmp/timeline-overview.png"); // full atlas span
   await render(1200, [600, 1100], "/tmp/timeline-crowded.png"); // dense MENA/Europe window
   await render(1200, [740, 1000], "/tmp/timeline-people.png"); // human scale: lifespan threads

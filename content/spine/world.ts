@@ -151,5 +151,9 @@ export const worldModules: SpineModule = {
       // The fall of Constantinople belongs to the Islamic lens too.
       events: ["fall-of-constantinople"],
     },
+    subcontinent: {
+      periods: ["gupta-empire"],
+      people: ["aryabhata"],
+    },
   },
 };

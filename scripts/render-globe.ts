@@ -11,6 +11,7 @@ import type { Topology, GeometryCollection } from "topojson-specification";
 import worldData from "world-atlas/land-110m.json";
 import countriesData from "world-atlas/countries-110m.json";
 import { client } from "@/db/client";
+import { bce } from "@/lib/dates";
 import type { GlobePeriod, GlobeEvent } from "@/lib/globe";
 import { drawGlobe, type GlobePalette } from "@/lib/globe-draw";
 import { selectCountryLabels, type CountryFeature } from "@/lib/modern-borders";
@@ -56,6 +57,7 @@ async function main() {
   const lensEventIds = new Set(lensRows.filter((r) => r.entity_type === "event").map((r) => r.entity_id));
 
   const frames: Array<{ year: number; rotation: [number, number]; out: string; lens?: boolean; modern?: boolean }> = [
+    { year: bce(250), rotation: [-85, -20], out: "/tmp/globe-bce250.png" }, // Maurya heartland; Kalinga pulse fading
     { year: 900, rotation: [-45, -25], out: "/tmp/globe-900.png" }, // five civs across Afro-Eurasia
     { year: 800, rotation: [90, -15], out: "/tmp/globe-maya-800.png" }, // the Americas lane
     { year: 1455, rotation: [-40, -30], out: "/tmp/globe-1455.png" }, // Ottoman risen, Byzantium just fell
