@@ -10,6 +10,9 @@ year scrubber. Read `docs/` before non-trivial changes:
 - `docs/content-guide.md` — how to author spine modules (the content format)
 - `docs/gotchas.md` — landmines already stepped on; read before touching build/db/canvas
 - `docs/workflow.md` — the preview-harness dev loop (how this repo verifies visuals)
+- `docs/sessions/` — per-session work logs (history, not state). At the END
+  of any session that changed the repo, append a `YYYY-MM-DD-<slug>.md`
+  following the convention in `docs/sessions/README.md`.
 
 ## Commands
 
