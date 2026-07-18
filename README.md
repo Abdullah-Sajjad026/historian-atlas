@@ -276,6 +276,32 @@ readable as context. An unknown lens id degrades gracefully to the unlensed
 view. `getThemeEntityIds` in the query layer returns the subgraph; the pure
 `lensAlpha` helper in src/lib/globe.ts is shared by both canvases.
 
+## Wave 3 notes (content sprint — first BCE content, 2026-07)
+
+Pure content + lens config: four new spine modules (maurya,
+delhi-sultanate, mughal, silk-road-events), two new lenses, zero schema or
+renderer changes. What the sprint proved and how it was verified:
+
+- **BCE rendering works end to end, first time exercised against live
+  data.** New permanent preview frames were added for it: timeline window
+  `[bce(400), 100]` and a globe frame at `bce(250)`. The PNG shows axis
+  ticks as "351 BCE … 1 BCE … 50 CE" (all through `formatYear`, no raw
+  negatives), the Maurya bar and Kalinga lozenge at the correct pixels,
+  and the globe frame shows the Pataliputra heartland with the Kalinga
+  pulse mid-fade. One known nit, recorded in docs/features.md: d3 picks
+  round *astronomical* ticks, so BCE labels read "301 BCE" not "300 BCE" —
+  correct formatting, off-round selection; snapping is a future nicety.
+- **Lens ghosting needed no new code.** A throwaway audit render (1600 CE,
+  subcontinent lens) confirmed invariant 3 with the new lenses: Mughal at
+  full pigment, Ottoman/Habsburg/Mali ghosted at unchanged size. A lens is
+  purely membership rows flowing into an alpha decision.
+- **LensPicker holds at three lenses.** Measured (node-canvas
+  `measureText`, the decision-audit pattern) at 380px: exactly 2 lines
+  with four pills — at the budget. Re-measure before adding a fourth lens.
+- Verified green: typecheck, 59 tests, seed (19 periods / 22 people /
+  19 events / 3 themes + smoke line), and all lens routes 200 with correct
+  memberships in the served HTML.
+
 ## Decisions log
 
 | Decision | Choice | Why |
@@ -285,3 +311,8 @@ view. `getThemeEntityIds` in the query layer returns the subgraph; the pure
 | Graph storage | Postgres ranges, no graph DB | Time-slice is the hot query; GiST covers it natively |
 | Hijri conversion | Year-level 33/32 approximation | Matches stored precision; day-level is out of scope |
 | Ongoing periods | `end_year IS NULL`, sentinel 3000 in ranges | Keeps range math total without magic values in content |
+| Delhi Sultanate `kind` | `kingdom`, not `era` | One sovereign state on one throne across five dynasties; `era` is for civilizational spans (Classic Maya), and the enum has no `sultanate` |
+| Maurya → Gupta link | No `parentId` | ~500-year gap is shared heartland, not succession; `parentId` means "succeeded" |
+| Mughal succession | `parentId` → delhi-sultanate | Real handoff: Panipat 1526 ends one and starts the other; the battle event links both periods |
+| Silk Road lens people | Empty in v1 | Only people genuinely tied to the road qualify; none seeded yet — membership beats vibes |
+| Wave 3 QIDs | ashoka/akbar/mughal-empire only | High-confidence only; omission beats guessing, enrich tripwire verifies later |
