@@ -1,0 +1,37 @@
+# CI: typecheck, unit tests, then the full pipeline against a real postgres —
+# migrate, seed, build. Every step here has been exercised locally; the seed
+# doubles as an integration test of the schema (its time-slice smoke query
+# fails loudly if the generated range columns are broken).
+
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: historian
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d historian"
+          --health-interval 3s --health-timeout 3s --health-retries 15
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/historian
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npm run bootstrap # migrate + seed = schema integration test
+      - run: npx next build

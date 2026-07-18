@@ -1,0 +1,47 @@
+# Local/prod-ish stack: postgres + one-shot migrate/seed + the app.
+#   docker compose up --build
+# App on http://localhost:3000 once "migrate" completes.
+# Uses the pgvector image to match the shared dev-postgres pattern; plain
+# postgres:16 works identically for this schema.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: docker
+      POSTGRES_DB: historian
+    ports:
+      - "5433:5432" # 5433 host-side to avoid clashing with an existing local pg
+    volumes:
+      - historian-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d historian"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  migrate:
+    build:
+      context: .
+      target: tools
+    environment:
+      DATABASE_URL: postgres://postgres:docker@db:5432/historian
+    command: pnpm run bootstrap
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: postgres://postgres:docker@db:5432/historian
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  historian-pgdata:

@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+   Ground: warm vellum + warm ink. No single brand accent — color is SEMANTIC:
+   each timeline region owns a historical-pigment hue, used consistently
+   everywhere an entity appears. This is the lane system of the Phase 2
+   timeline, introduced at the token level now.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-vellum: #efe8d8;
+  --color-vellum-deep: #e6dcc6;
+  --color-ink: #221d16;
+  --color-ink-soft: #5c5344;
+  --color-rule: #cfc3a9;
+
+  /* Region pigments (historical pigment palette) */
+  --color-east-asia: #b23a2b;            /* cinnabar */
+  --color-south-asia: #c4881b;           /* Indian yellow */
+  --color-mena: #2d5c8f;                 /* lapis lazuli */
+  --color-europe: #47786b;               /* verdigris */
+  --color-sub-saharan-africa: #a65e2e;   /* ochre */
+  --color-americas: #8e3b52;             /* cochineal */
+  --color-steppe-central-asia: #6e7f4c;  /* steppe celadon */
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino,
+    "Book Antiqua", Georgia, serif;
+  --font-body: Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "IBM Plex Mono", "Cascadia Mono", Menlo, monospace;
+}
+
+body {
+  background: var(--color-vellum);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  /* Faint laid-paper grain — two overlaid line rasters, CSS only. */
+  background-image: repeating-linear-gradient(
+      0deg, transparent, transparent 2px, rgb(34 29 22 / 0.015) 3px),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 2px, rgb(34 29 22 / 0.01) 3px);
+}
+
+/* Years and date ranges are always tabular mono — data, not prose. */
+.year {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+
+/* Eyebrow labels: "CALIPHATE · MENA" */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+/* Region tick — the pigment mark carried by every entity reference. */
+.tick {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 1px;
+  flex: none;
+  transform: rotate(45deg); /* lozenge, not dot — reads as cartographic */
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a { text-underline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,4 @@
+allowBuilds:
+  canvas: true # native binary for the node-canvas preview harness (prebuilt; see docs/workflow.md)
+  esbuild: true # vitest / tsx toolchain
+  sharp: false # unused — this app has no next/image
