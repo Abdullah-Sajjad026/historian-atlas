@@ -26,11 +26,16 @@ jobs:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/historian
     steps:
       - uses: actions/checkout@v4
+      # pnpm is the package manager (pnpm-lock.yaml is the only lockfile) —
+      # setup-node's npm cache mode hard-fails without a package-lock.json.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: npx tsc --noEmit
       - run: npx vitest run
       - run: npm run bootstrap # migrate + seed = schema integration test
