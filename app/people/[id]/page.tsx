@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPersonDetail } from "@/db/queries";
-import { formatYearWithCertainty } from "@/lib/dates";
+import { formatYear, formatYearWithCertainty } from "@/lib/dates";
 import { RegionTick, PeriodYears, MeanwhileRail } from "../../components";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +52,19 @@ export default async function PersonPage({
               {person.death_year !== null
                 ? formatYearWithCertainty(person.death_year, person.death_certainty)
                 : ""}
+            </p>
+          )}
+          {/* Deep link to the globe at mid-life (the meanwhile slice's year).
+              No &focus= — people aren't periods; &view=both puts their star
+              in the frame instead. */}
+          {meanwhile && (
+            <p className="eyebrow mt-3">
+              <Link
+                href={`/world?year=${meanwhile.year}&view=both`}
+                className="hover:underline"
+              >
+                the world in {formatYear(meanwhile.year)} →
+              </Link>
             </p>
           )}
           {person.influence && (

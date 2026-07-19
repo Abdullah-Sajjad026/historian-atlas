@@ -55,6 +55,25 @@ export default async function PeriodPage({
           <p className="mt-1">
             <PeriodYears p={period} dual />
           </p>
+          {/* Deep links into the shared canvases. The world link carries
+              &focus= only when a heartland exists to rotate to; the timeline
+              link stays bare — a lens the reader arrived through isn't
+              knowable here, so we don't guess at propagating one. */}
+          <p className="eyebrow mt-3 flex flex-wrap gap-x-5">
+            <Link
+              href={
+                period.center_lat != null && period.center_lng != null
+                  ? `/world?year=${period.start_year}&focus=${period.id}`
+                  : `/world?year=${period.start_year}`
+              }
+              className="hover:underline"
+            >
+              the world in {formatYear(period.start_year)} →
+            </Link>
+            <Link href="/timeline" className="hover:underline">
+              on the timeline →
+            </Link>
+          </p>
           {period.summary && (
             <p className="mt-4 max-w-2xl text-(--color-ink-soft)">
               {period.summary}

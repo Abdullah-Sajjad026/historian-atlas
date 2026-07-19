@@ -122,6 +122,12 @@ Georgia, which measures close enough for label decisions).
   first for painter's order), `kmToDegrees` (÷111.32 for d3.geoCircle),
   `pulseIntensity` (±15y linear falloff), `lifeFade` (0.08-floor ramp over
   first/last 10y — "empires breathe"), `lensAlpha` (1 or GHOST_ALPHA 0.15).
+  URL-state helpers (also pure/tested): `clampYear` (parse-and-clamp for
+  `?year=`; absent/NaN → null so callers keep their default) and
+  `rotationForPoint(lat, lng)` → `[-lng, -clamp(lat, ±MAX_PHI)]`, the
+  orthographic rotation centering a point (`?focus=` resolves a period's
+  heartland through it server-side; MAX_PHI = 80 is the same pole bound
+  the drag clamps to).
   `src/lib/modern-borders.ts` (also pure/tested): `selectCountryLabels` —
   geoArea threshold + allowlist over countries-110m features, geoCentroid
   positions — feeding the optional modern-borders overlay.
@@ -164,10 +170,15 @@ Georgia, which measures close enough for label decisions).
 - **Critical separation**: `lifeFade` drives radius AND alpha; `lensAlpha`
   drives alpha ONLY (a ghosted empire keeps its true size), with a ~0.3
   stroke floor so ghost outlines stay legible.
-- Client owns rotation drag (manual pointer math, φ clamped ±80), wheel
+- Client owns rotation drag (manual pointer math, φ clamped ±MAX_PHI), wheel
   zoom (0.8–2.6), the year scrubber + play mode (rAF, 14 yr/s), heartland
-  click-through (hit radius 10px on DrawResult.heartlands), and the side
-  panel (alive-at-year + flaring events, lens-ghosted at 40% opacity).
+  click-through (hit radius 10px on DrawResult.heartlands), the side
+  panel (alive-at-year + flaring events, lens-ghosted at 40% opacity), and
+  the year write-back: scrub/pause → 400ms debounce → `router.replace` of
+  `?year=` built from the live search string (all other params preserved);
+  never during play, and rotation drag never writes (`?focus=` is an entry
+  hint, not tracked state). No year store/context — the URL and the one
+  `year` state are the only homes.
 
 ## App shell
 

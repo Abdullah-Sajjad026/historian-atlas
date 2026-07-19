@@ -22,6 +22,10 @@ export interface PeriodRow {
   summary: string | null;
   /** Present only on detail queries; curated fields always win at render. */
   enrichment?: EnrichmentPayload | null;
+  /** Heartland — present only on detail queries; gates the "world in <year>"
+   *  deep link's &focus= (a focus without a heartland resolves to nothing). */
+  center_lat?: number | null;
+  center_lng?: number | null;
 }
 
 export interface PersonRow {
@@ -114,7 +118,8 @@ export async function getPeriodDetail(
 ): Promise<PeriodDetail | null> {
   const rows = await client<PeriodRow[]>`
     SELECT id, name, kind, start_year, end_year, start_certainty, end_certainty,
-           region, parent_id, importance, summary, enrichment
+           region, parent_id, importance, summary, enrichment,
+           center_lat, center_lng
     FROM periods WHERE id = ${id}`;
   const period = rows[0];
   if (!period) return null;
