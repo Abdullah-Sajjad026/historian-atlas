@@ -89,6 +89,38 @@ export function lifeFade(
 }
 
 /**
+ * The pole bound for the orthographic φ rotation: the drag clamps to ±80° so
+ * the globe can't flip over a pole, and rotations computed from coordinates
+ * honor the same bound.
+ */
+export const MAX_PHI = 80;
+
+/**
+ * The orthographic rotation that centers a point. d3 rotates the SPHERE, so
+ * centering [lng, lat] means negating both; latitude is clamped to MAX_PHI so
+ * a ?focus= entry can never produce a rotation the drag couldn't reach.
+ */
+export function rotationForPoint(lat: number, lng: number): [number, number] {
+  return [-lng, -Math.max(-MAX_PHI, Math.min(MAX_PHI, lat))];
+}
+
+/**
+ * Parse-and-clamp for the ?year= URL param. Absent, empty, or non-numeric
+ * input returns null (callers fall back to their default year); numeric input
+ * is rounded to an integer and clamped into [min, max].
+ */
+export function clampYear(
+  raw: string | undefined,
+  min: number,
+  max: number,
+): number | null {
+  if (raw === undefined || raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+/**
  * Lens ghosting: entities outside an active lens render dimmed, not hidden —
  * the lens is a spotlight on the world, not a filter that deletes it.
  * No lens (undefined) = everything at full strength.

@@ -18,6 +18,9 @@ import {
   linkAlpha,
   linkLensAlpha,
   LINK_PULSE_WINDOW,
+  rotationForPoint,
+  clampYear,
+  MAX_PHI,
   type GlobePeriod,
   type GlobePerson,
   type GlobeLink,
@@ -114,6 +117,39 @@ describe("lensAlpha", () => {
     const lens = new Set(["abbasid-caliphate"]);
     expect(lensAlpha("abbasid-caliphate", lens)).toBe(1);
     expect(lensAlpha("tang-dynasty", lens)).toBe(GHOST_ALPHA);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Shareable time & place — URL-state helpers
+// ---------------------------------------------------------------------------
+
+describe("rotationForPoint", () => {
+  it("centers Baghdad by negating its coordinates", () => {
+    expect(rotationForPoint(33.31, 44.36)).toEqual([-44.36, -33.31]);
+  });
+  it("clamps polar latitudes to the drag's ±80° φ bound", () => {
+    expect(rotationForPoint(89, 20)).toEqual([-20, -MAX_PHI]);
+    expect(rotationForPoint(-89, 20)).toEqual([-20, MAX_PHI]);
+  });
+});
+
+describe("clampYear", () => {
+  it("parses in-range integers through unchanged", () => {
+    expect(clampYear("800", 300, 1600)).toBe(800);
+    expect(clampYear("-300", -500, 1600)).toBe(-300); // astronomical BCE
+  });
+  it("clamps to the domain on both ends", () => {
+    expect(clampYear("99999", 300, 1600)).toBe(1600);
+    expect(clampYear("-5000", 300, 1600)).toBe(300);
+  });
+  it("rounds fractional input to an integer year", () => {
+    expect(clampYear("750.6", 300, 1600)).toBe(751);
+  });
+  it("returns null for absent, empty, or unparseable input", () => {
+    expect(clampYear(undefined, 300, 1600)).toBeNull();
+    expect(clampYear("", 300, 1600)).toBeNull();
+    expect(clampYear("tang", 300, 1600)).toBeNull();
   });
 });
 

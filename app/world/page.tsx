@@ -1,6 +1,8 @@
 import { client } from "@/db/client";
 import {
   resolveEndpoints,
+  rotationForPoint,
+  clampYear,
   type GlobePeriod,
   type GlobeEvent,
   type GlobePerson,
@@ -31,9 +33,12 @@ export default async function WorldPage({
     genre?: string;
     civ?: string;
     links?: string;
+    year?: string;
+    focus?: string;
   }>;
 }) {
-  const { lens, modern, view, genre, civ, links } = await searchParams;
+  const { lens, modern, view, genre, civ, links, year, focus } =
+    await searchParams;
   const periods = await client<GlobePeriod[]>`
     SELECT id, name, region, start_year, end_year, center_lat, center_lng,
            influence_km, importance FROM periods`;
@@ -67,6 +72,21 @@ export default async function WorldPage({
   const maxYear =
     Math.max(...periods.map((p) => p.end_year ?? p.start_year + 50)) + 20;
 
+  // ?year= arrives shareable: clamped into the scrubber's domain; anything
+  // unparseable falls back to the same default the bare page uses.
+  const initialYear = clampYear(year, minYear, maxYear) ?? 751;
+
+  // ?focus=<period-slug> is an ENTRY HINT, resolved server-side to the
+  // period's heartland. Unknown slug or a heartland-less period degrades
+  // silently to the default rotation, like every other param on this page.
+  const focusPeriod = focus ? periods.find((p) => p.id === focus) : undefined;
+  const initialRotation =
+    focusPeriod &&
+    focusPeriod.center_lat !== null &&
+    focusPeriod.center_lng !== null
+      ? rotationForPoint(focusPeriod.center_lat, focusPeriod.center_lng)
+      : null;
+
   return (
     <div className="space-y-6">
       <header>
@@ -90,6 +110,9 @@ export default async function WorldPage({
         lensPeriodIds={lensIds?.periodIds ?? null}
         lensEventIds={lensIds?.eventIds ?? null}
         lensPersonIds={lensIds?.personIds ?? null}
+        activeLens={activeLens}
+        initialYear={initialYear}
+        initialRotation={initialRotation}
         initialModern={modern === "1"}
         initialLinks={links !== "0"}
         initialView={initialView}

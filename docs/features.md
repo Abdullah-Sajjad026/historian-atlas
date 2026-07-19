@@ -23,6 +23,30 @@ Every entity page shows "what else was happening":
   midpoint — see gotchas), excluding the period itself and events already
   listed on the page.
 
+## Deep links between the surfaces (time & place bridges)
+
+Entity pages link into the shared canvases with mono-eyebrow links:
+
+- **Period pages** (header, under the year range): "the world in
+  <start year>" → `/world?year=<start>&focus=<id>` (`&focus=` only when
+  the period has a heartland — a focus with nothing to rotate to is
+  omitted, not emitted-and-ignored), and "on the timeline" → `/timeline`.
+  Neither link propagates a lens — the page can't know what lens context
+  the reader arrived through, so it doesn't guess.
+- **Person pages** (header, under the lifespan): "the world in <mid-life
+  year>" → `/world?year=<mid>&view=both`. No `&focus=` — people aren't
+  periods; `&view=both` puts their star in the frame instead. The mid-life
+  year is the same one the MeanwhileRail samples (`meanwhile.year`).
+- **Event pages** — don't exist yet (open decision #1). When they land,
+  they will link `?year=<event year>`.
+- **/world side panel** → "this year on the timeline" bridge at the top
+  (carries `?lens=` when active, not the year — open decision #8).
+- **Timeline bar click stays exactly as it was** (→ period page). The
+  timeline→globe bridge lives on ENTITY pages by design: a click on a bar
+  already has a richer destination (the period page, which now carries the
+  world link), and overloading the canvas click would cost the existing
+  navigation.
+
 ## Timeline behaviors
 
 - Zoom/pan: d3-zoom on the canvas, scaleExtent [0.8, 300], translateExtent
@@ -94,8 +118,25 @@ Every entity page shows "what else was happening":
   world (members bright, rest ghosted, nothing hidden), while facets narrow
   which people are in the view at all (they feed both the stars and the
   Shining panel). Facets never touch lens ghosting and vice versa. All
-  params compose: `?view=&genre=&civ=&lens=&modern=`; unknown values
-  degrade silently like `?lens=`.
+  params compose: `?view=&genre=&civ=&lens=&modern=&links=&year=&focus=`;
+  unknown values degrade silently like `?lens=`.
+- **Shareable time & place** (`?year=<int>`, `?focus=<period-slug>`):
+  `?year=` sets the initial scrubbed year, parsed and clamped into
+  [minYear, maxYear] by `clampYear` (pure, tested; unparseable → the
+  default 751). `?focus=` is an ENTRY HINT resolved server-side: a known
+  period with a heartland yields an initial rotation of
+  `rotationForPoint(lat, lng)` (= `[-lng, -clamp(lat, ±80°)]`, the same φ
+  pole bound as the drag); unknown slug or no heartland degrades silently
+  to the default rotation. Write-back: when the user scrubs or PAUSES
+  play, the client debounces 400ms then `router.replace`s `?year=` built
+  from the CURRENT search string, so view/lens/modern/links/genre/civ all
+  ride along. The URL is NEVER written during active play (a rAF loop
+  would spam history) — pausing writes the year you stopped at. Dragging
+  rotation writes NOTHING: focus is an entry hint, not tracked state (the
+  asymmetry is deliberate and commented in the client). The side panel
+  tops out with a "this year on the timeline" bridge link (+ `?lens=`
+  when one is active); it cannot carry the year yet — see open decision
+  below.
 - **Connections** (`?links=0` to hide; absent = on; checkbox next to the
   view toggle): relationships between entities — embassy, war, trade,
   journey, transmission — drawn as **great-circle arcs** between their
@@ -200,7 +241,8 @@ Structural edge cases the format has PROVEN (don't regress them):
 
 1. **Event pages** — events have no detail pages; search/timeline route
    them to the timeline. Whether they deserve pages should be decided from
-   real usage, not speculation.
+   real usage, not speculation. When they land (queued next), they will
+   deep-link `/world?year=<event year>`.
 2. **Empty lanes** — `buildLanes` skips regions with no periods. Revisit
    whether to render empty lanes as invitations once the spine is denser.
 3. **Timeline lens vs LOD interaction** — ghosted entities still occupy
@@ -222,3 +264,11 @@ Structural edge cases the format has PROVEN (don't regress them):
    suggests event pages acting as connection hubs ("everything that met at
    Talas"). Bundled with open decision #1 (events have no pages at all yet);
    revisit both together.
+8. **Timeline `?window=` viewport deep-link** — the timeline has no URL
+   param for its zoom/pan viewport, so the globe's "this year on the
+   timeline" bridge (and any future year-carrying link into the timeline)
+   lands on the default view. A `?window=<start>,<end>` param was
+   deliberately NOT invented during the shareable-time-place work: the
+   timeline's viewport is a d3-zoom transform, and a half-designed param
+   would ossify. Decide the shape (center+span vs range? write-back on
+   pan?) before adding it.

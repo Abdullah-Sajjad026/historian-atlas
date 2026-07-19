@@ -22,6 +22,7 @@ import {
   filterPeople,
   linkAlpha,
   linkLensAlpha,
+  MAX_PHI,
   type GlobePeriod,
   type GlobeEvent,
   type GlobePerson,
@@ -83,6 +84,14 @@ interface Props {
   lensPeriodIds: string[] | null;
   lensEventIds: string[] | null;
   lensPersonIds: string[] | null;
+  /** Active lens id (validated server-side) so the timeline bridge link can
+   *  carry ?lens= across; null = no lens. */
+  activeLens: string | null;
+  /** Initial scrubbed year (?year=, already clamped server-side). */
+  initialYear: number;
+  /** Initial rotation from ?focus= (a period's heartland via
+   *  rotationForPoint); null = the default rotation. */
+  initialRotation: [number, number] | null;
   /** Initial state of the modern-borders overlay (?modern=1). */
   initialModern: boolean;
   /** Initial state of the connections layer (?links=0 hides; absent = on). */
@@ -129,6 +138,9 @@ export default function GlobeClient({
   lensPeriodIds,
   lensEventIds,
   lensPersonIds,
+  activeLens,
+  initialYear,
+  initialRotation,
   initialModern,
   initialLinks,
   initialView,
@@ -151,7 +163,7 @@ export default function GlobeClient({
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [year, setYear] = useState(751);
+  const [year, setYear] = useState(initialYear);
   const [playing, setPlaying] = useState(false);
   const [modern, setModern] = useState(initialModern);
   const [showLinks, setShowLinks] = useState(initialLinks);
@@ -184,10 +196,10 @@ export default function GlobeClient({
 
   // Interaction state lives in refs; paints happen outside React renders.
   const st = useRef({
-    rotation: [-70, -25] as [number, number],
+    rotation: (initialRotation ?? [-70, -25]) as [number, number],
     zoom: 1,
     size: 640,
-    year: 751,
+    year: initialYear,
     modern: initialModern,
     showLinks: initialLinks,
     view: initialView,
@@ -225,6 +237,31 @@ export default function GlobeClient({
   useEffect(() => {
     paint();
   }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- shareable year ------------------------------------------------------
+  // Mirror the scrubbed year into the URL so a view can be shared: once a
+  // scrub (or a pause) settles for 400ms, replace ?year= — built from the
+  // CURRENT location.search so every other param (view/lens/modern/links/
+  // genre/civ, and a ?focus= entry hint) rides along untouched. NEVER during
+  // play: a rAF loop would spam router.replace every frame; pausing writes
+  // the year you stopped at (the effect re-fires on the playing flip).
+  // Rotation drag deliberately writes NOTHING — ?focus= is an entry hint,
+  // not tracked state, so spinning the globe never touches the URL.
+  const yearWriteArmed = useRef(false);
+  useEffect(() => {
+    if (playing) return;
+    if (!yearWriteArmed.current) {
+      // Skip the mount pass — a bare /world visit shouldn't grow a ?year=.
+      yearWriteArmed.current = true;
+      return;
+    }
+    const id = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("year", String(Math.round(year)));
+      router.replace(`/world?${params.toString()}`, { scroll: false });
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [year, playing, router]);
 
   /** Mirror view/facet/overlay state into the URL (shareable, composes with
    *  ?lens=) without a navigation — the repaint already happened from state. */
@@ -338,7 +375,8 @@ export default function GlobeClient({
       s.heartlands.find((h) => Math.hypot(h.x - mx, h.y - my) < 10);
     const isStar = (id: string) => s.stars.some((h) => h.id === id);
 
-    // --- drag to rotate --------------------------------------------------
+    // --- drag to rotate (URL-silent: ?focus= is an entry hint, so spinning
+    // the globe never writes — unlike the scrubbed year above) -------------
     function down(ev: PointerEvent) {
       s.dragging = true;
       s.lastX = ev.clientX;
@@ -356,7 +394,7 @@ export default function GlobeClient({
       const k = 0.22 / s.zoom;
       s.rotation = [
         s.rotation[0] + (ev.clientX - s.lastX) * k,
-        Math.max(-80, Math.min(80, s.rotation[1] - (ev.clientY - s.lastY) * k)),
+        Math.max(-MAX_PHI, Math.min(MAX_PHI, s.rotation[1] - (ev.clientY - s.lastY) * k)),
       ];
       s.lastX = ev.clientX;
       s.lastY = ev.clientY;
@@ -569,6 +607,17 @@ export default function GlobeClient({
       </div>
 
       <aside className="border-l-2 border-(--color-rule) pl-5 space-y-6">
+        {/* Bridge to the timeline. Carries the lens across; NOT the year —
+            the timeline has no year-viewport param yet (open decision in
+            docs/features.md: "timeline ?window= viewport deep-link"). */}
+        <p>
+          <Link
+            href={activeLens ? `/timeline?lens=${activeLens}` : "/timeline"}
+            className="eyebrow hover:underline"
+          >
+            this year on the timeline →
+          </Link>
+        </p>
         {showPeople && (
           <div>
             <p className="eyebrow mb-2">Shining in {formatYear(displayYear)}</p>
