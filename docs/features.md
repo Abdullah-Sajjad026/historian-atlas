@@ -7,6 +7,7 @@
 | `/` | Civilizations grouped by region lane + lens list | `app/page.tsx` |
 | `/periods/[id]` | Period detail: succession, people-with-roles, events, enrichment image, **ConcurrentRail** | `app/periods/[id]/page.tsx`, `getPeriodDetail` |
 | `/people/[id]` | Person detail: lifespan, memberships, **MeanwhileRail** at mid-life | `app/people/[id]/page.tsx`, `getPersonDetail` |
+| `/events/[id]` | Event hub: participants (linked periods), connections touching the event, **MeanwhileRail** at the event's year, doors into globe + timeline | `app/events/[id]/page.tsx`, `getEventDetail` |
 | `/themes/[id]` | Lens page: subgraph lists, dual Hijri years, links into lensed timeline/globe | `app/themes/[id]/page.tsx` |
 | `/timeline` | Zoomable multi-lane Canvas timeline; `?lens=` ghosting | `app/timeline/*`, `src/lib/timeline-*` |
 | `/world` | Interactive orthographic globe + year scrubber; `?lens=` ghosting | `app/world/*`, `src/lib/globe*` |
@@ -22,6 +23,11 @@ Every entity page shows "what else was happening":
 - **Period pages** → `ConcurrentRail`: RANGE-OVERLAP concurrency (never
   midpoint — see gotchas), excluding the period itself and events already
   listed on the page.
+- **Event pages** → `MeanwhileRail` at the event's start year. The
+  point-sample variant is CORRECT here (an event is a moment, not a range —
+  the point-vs-overlap rule in architecture.md). `getEventDetail` filters
+  the event itself out of the slice's ±25y events window, mirroring
+  ConcurrentRail's self-exclusion.
 
 ## Deep links between the surfaces (time & place bridges)
 
@@ -37,10 +43,20 @@ Entity pages link into the shared canvases with mono-eyebrow links:
   year>" → `/world?year=<mid>&view=both`. No `&focus=` — people aren't
   periods; `&view=both` puts their star in the frame instead. The mid-life
   year is the same one the MeanwhileRail samples (`meanwhile.year`).
-- **Event pages** — don't exist yet (open decision #1). When they land,
-  they will link `?year=<event year>`.
+- **Event pages** (header, under the year): "the world in <year>" →
+  `/world?year=<start>&links=1` — connections stay explicitly on (an event
+  page is a hub; arcs are its context) — plus `&lat=&lng=` when the event
+  has a location, centering the globe on it; and "on the timeline" →
+  `/timeline`, bare like the period page's. **The ?lat/&lng decision**:
+  events have no `?focus=` slug space, so `/world` grew optional
+  `?lat=&lng=` handling beside `?focus=` — parsed by `clampCoord` (pure,
+  tested; the clampYear contract with a ±bound instead of a domain),
+  resolved through the same `rotationForPoint`, and `?focus=` WINS when
+  both are present (a named period is the more specific intent). It was a
+  clean ~10-line extension, so centering shipped rather than year-only
+  links.
 - **/world side panel** → "this year on the timeline" bridge at the top
-  (carries `?lens=` when active, not the year — open decision #8).
+  (carries `?lens=` when active, not the year — open decision #6).
 - **Timeline bar click stays exactly as it was** (→ period page). The
   timeline→globe bridge lives on ENTITY pages by design: a click on a bar
   already has a richer destination (the period page, which now carries the
@@ -61,9 +77,9 @@ Entity pages link into the shared canvases with mono-eyebrow links:
   beside the bar only if `labelSpace` (gap to next bar in the row) fits;
   otherwise skipped — the hover tooltip reveals the name. Same rule for
   person threads.
-- Hit priority events > people > periods; click → entity page (events
-  currently no-op on click — they have no pages yet, a deliberate open
-  decision). Tooltip shows name + years.
+- Hit priority events > people > periods; click → entity page (event
+  lozenges included — they navigate to `/events/[id]`). Tooltip shows
+  name + years.
 - Draw culling: boxes outside viewport±200px skipped.
 - `?lens=<theme>` ghosts non-member bars/lozenges to 0.15 alpha; unknown
   lens id degrades to unlensed. Lens picker pills rendered by
@@ -88,8 +104,9 @@ Entity pages link into the shared canvases with mono-eyebrow links:
   scrubber sets year (dual CE/AH readout via `formatYearDual`), **Play
   history** animates at 14 yr/s via rAF, pausing at maxYear. Heartland
   click (10px radius) → period page.
-- Side panel: "Alive in <year>" list + "Flaring" events, lens-ghosted
-  entries at 40% opacity when a lens is active.
+- Side panel: "Alive in <year>" list + "Flaring" events (names link to
+  their event pages), lens-ghosted entries at 40% opacity when a lens is
+  active.
 - `?lens=` ghosts circles/pulses: ALPHA ONLY (size unchanged), stroke floor
   ~0.3 so outlines stay legible.
 - **View modes** (`?view=people|both`, pill row above the canvas; absent =
@@ -118,16 +135,23 @@ Entity pages link into the shared canvases with mono-eyebrow links:
   world (members bright, rest ghosted, nothing hidden), while facets narrow
   which people are in the view at all (they feed both the stars and the
   Shining panel). Facets never touch lens ghosting and vice versa. All
-  params compose: `?view=&genre=&civ=&lens=&modern=&links=&year=&focus=`;
+  params compose:
+  `?view=&genre=&civ=&lens=&modern=&links=&year=&focus=&lat=&lng=`;
   unknown values degrade silently like `?lens=`.
-- **Shareable time & place** (`?year=<int>`, `?focus=<period-slug>`):
+- **Shareable time & place** (`?year=<int>`, `?focus=<period-slug>`,
+  `?lat=&lng=`):
   `?year=` sets the initial scrubbed year, parsed and clamped into
   [minYear, maxYear] by `clampYear` (pure, tested; unparseable → the
   default 751). `?focus=` is an ENTRY HINT resolved server-side: a known
   period with a heartland yields an initial rotation of
   `rotationForPoint(lat, lng)` (= `[-lng, -clamp(lat, ±80°)]`, the same φ
   pole bound as the drag); unknown slug or no heartland degrades silently
-  to the default rotation. Write-back: when the user scrubs or PAUSES
+  to the default rotation. `?lat=&lng=` is the same entry hint in raw
+  coordinates (event pages use it — events have no `?focus=` slug space):
+  each parsed and clamped into ±90/±180 by `clampCoord` (pure, tested),
+  fed through the same `rotationForPoint`; `?focus=` wins when both are
+  present, and either coord missing/unparseable degrades silently.
+  Write-back: when the user scrubs or PAUSES
   play, the client debounces 400ms then `router.replace`s `?year=` built
   from the CURRENT search string, so view/lens/modern/links/genre/civ all
   ride along. The URL is NEVER written during active play (a rAF loop
@@ -186,7 +210,8 @@ Entity pages link into the shared canvases with mono-eyebrow links:
 Header client component over `getSearchIndex()` (all periods/people/events/
 themes, fetched in the root layout). Substring filter from 2 chars, top 8,
 arrow keys + Enter, Escape closes, mousedown-preventDefault so blur doesn't
-eat clicks. Events route to `/timeline` (no event pages yet). Client-side
+eat clicks. Every entity type routes to its own page (events included:
+`/events/[id]`, with the start year as the detail column). Client-side
 by design — the spine is curated and small; revisit past a few thousand
 entries.
 
@@ -213,9 +238,9 @@ lens is added, re-measure before assuming the pill row still fits.
 
 ## Enrichment display
 
-Period pages render `enrichment.imageFile` (Commons Special:FilePath,
-width=900) with an "image via wikimedia commons · <description>" eyebrow
-caption. Curated fields always win; enrichment is fallback/supplement only.
+Period and event pages render `enrichment.imageFile` (Commons
+Special:FilePath, width=900) with an "image via wikimedia commons ·
+<description>" eyebrow caption. Curated fields always win; enrichment is fallback/supplement only.
 Proven end-to-end by injecting a fixture row and curling the page.
 
 ## Content model highlights (see docs/content-guide.md for authoring)
@@ -239,32 +264,28 @@ Structural edge cases the format has PROVEN (don't regress them):
 
 ## Deliberately open decisions (do not "fix" without a call)
 
-1. **Event pages** — events have no detail pages; search/timeline route
-   them to the timeline. Whether they deserve pages should be decided from
-   real usage, not speculation. When they land (queued next), they will
-   deep-link `/world?year=<event year>`.
-2. **Empty lanes** — `buildLanes` skips regions with no periods. Revisit
+(Former #1 "event pages" and #7 "event-page hubs" are RESOLVED: `/events/[id]`
+exists — see the routes table — and renders a Connections section for links
+touching the event, so an event page IS the hub "everything that met here".)
+
+1. **Empty lanes** — `buildLanes` skips regions with no periods. Revisit
    whether to render empty lanes as invitations once the spine is denser.
-3. **Timeline lens vs LOD interaction** — ghosted entities still occupy
+2. **Timeline lens vs LOD interaction** — ghosted entities still occupy
    layout rows; an alternative (collapse ghosted rows) trades context for
    density. Current choice is deliberate (lens ≠ filter).
-4. **Globe label collisions** — heartland labels can overlap when centers
+3. **Globe label collisions** — heartland labels can overlap when centers
    are close (Byzantine/Ottoman share Constantinople). Acceptable at
    current density; needs a nudge algorithm eventually. Star labels in the
    People view inherit the same open decision (fan-out separates the stars
    themselves, but two labels a degree apart can still overprint).
-5. **Facets on the timeline people strip** — the genre/civilization facets
+4. **Facets on the timeline people strip** — the genre/civilization facets
    exist only on the globe for now; extending them to the timeline strip is
    deliberately deferred until the globe UX settles.
-6. **Arc hit-testing** — connection arcs are not clickable/hoverable in v1
+5. **Arc hit-testing** — connection arcs are not clickable/hoverable in v1
    (DrawResult carries per-arc metadata, so the plumbing exists). Hit-testing
    a thin curve needs distance-to-path math the dots/stars don't; decide
    from real usage whether arcs deserve it or the panel entry suffices.
-7. **Event-page hubs** — links can reference events as endpoints, which
-   suggests event pages acting as connection hubs ("everything that met at
-   Talas"). Bundled with open decision #1 (events have no pages at all yet);
-   revisit both together.
-8. **Timeline `?window=` viewport deep-link** — the timeline has no URL
+6. **Timeline `?window=` viewport deep-link** — the timeline has no URL
    param for its zoom/pan viewport, so the globe's "this year on the
    timeline" bridge (and any future year-carrying link into the timeline)
    lands on the default view. A `?window=<start>,<end>` param was

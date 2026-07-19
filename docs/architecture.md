@@ -59,6 +59,14 @@ cycle). `EXPLAIN` confirms `Index Scan using periods_slice_idx` for
   renders an empty rail. Rule: **point queries for people (short lifespans),
   overlap queries for periods.** Concurrent events exclude ones already
   linked to the period (NOT EXISTS on event_periods).
+- `getEventDetail(id)` — event (+ enrichment + lat/lng) + participant
+  periods via event_periods (0 is legal — the Hijra) + links touching the
+  event as an endpoint (other-endpoint names resolved so the page can link
+  entities; dangling ids fall back to the slug) + `moment`: the event-year
+  slice via `getTimeSlice` (an event is a MOMENT, so the point-sample rule
+  applies, not period-style range overlap) with the event itself filtered
+  out of the ±25y events window — the same self-exclusion the period rail
+  does.
 - `getThemeEntityIds(id)` — the lens subgraph (period + event + person id
   lists).
 - `getTimelinePeople()` — `DISTINCT ON (person)` joined through
@@ -123,11 +131,13 @@ Georgia, which measures close enough for label decisions).
   `pulseIntensity` (±15y linear falloff), `lifeFade` (0.08-floor ramp over
   first/last 10y — "empires breathe"), `lensAlpha` (1 or GHOST_ALPHA 0.15).
   URL-state helpers (also pure/tested): `clampYear` (parse-and-clamp for
-  `?year=`; absent/NaN → null so callers keep their default) and
-  `rotationForPoint(lat, lng)` → `[-lng, -clamp(lat, ±MAX_PHI)]`, the
-  orthographic rotation centering a point (`?focus=` resolves a period's
-  heartland through it server-side; MAX_PHI = 80 is the same pole bound
-  the drag clamps to).
+  `?year=`; absent/NaN → null so callers keep their default), `clampCoord`
+  (the same contract for `?lat=`/`?lng=` — keeps the fraction, clamps into
+  ±bound; event pages enter through these since events have no `?focus=`
+  slug) and `rotationForPoint(lat, lng)` → `[-lng, -clamp(lat, ±MAX_PHI)]`,
+  the orthographic rotation centering a point (`?focus=` resolves a
+  period's heartland through it server-side and wins over `?lat=&lng=`;
+  MAX_PHI = 80 is the same pole bound the drag clamps to).
   `src/lib/modern-borders.ts` (also pure/tested): `selectCountryLabels` —
   geoArea threshold + allowlist over countries-110m features, geoCentroid
   positions — feeding the optional modern-borders overlay.
@@ -193,8 +203,8 @@ Georgia, which measures close enough for label decisions).
   Georgia), mono for ALL years/dates (`.year`), letter-spaced mono eyebrows.
 - Shared components in `app/components.tsx`: RegionTick (rotated lozenge),
   PeriodYears (certainty-aware, optional dual Hijri), MeanwhileRail
-  (point-sample variant, person pages) and ConcurrentRail (overlap variant,
-  period pages), REGION_LABEL map.
+  (point-sample variant, person + event pages) and ConcurrentRail (overlap
+  variant, period pages), REGION_LABEL map.
 
 ## Enrichment (`src/lib/enrich.ts` + `scripts/enrich.ts`)
 

@@ -3,6 +3,7 @@ import {
   resolveEndpoints,
   rotationForPoint,
   clampYear,
+  clampCoord,
   type GlobePeriod,
   type GlobeEvent,
   type GlobePerson,
@@ -35,9 +36,11 @@ export default async function WorldPage({
     links?: string;
     year?: string;
     focus?: string;
+    lat?: string;
+    lng?: string;
   }>;
 }) {
-  const { lens, modern, view, genre, civ, links, year, focus } =
+  const { lens, modern, view, genre, civ, links, year, focus, lat, lng } =
     await searchParams;
   const periods = await client<GlobePeriod[]>`
     SELECT id, name, region, start_year, end_year, center_lat, center_lng,
@@ -80,12 +83,22 @@ export default async function WorldPage({
   // period's heartland. Unknown slug or a heartland-less period degrades
   // silently to the default rotation, like every other param on this page.
   const focusPeriod = focus ? periods.find((p) => p.id === focus) : undefined;
-  const initialRotation =
+  const focusRotation =
     focusPeriod &&
     focusPeriod.center_lat !== null &&
     focusPeriod.center_lng !== null
       ? rotationForPoint(focusPeriod.center_lat, focusPeriod.center_lng)
       : null;
+
+  // ?lat=&lng= is the entry hint for entities without a ?focus= slug (event
+  // pages center their location this way). Clamped like every coordinate;
+  // ?focus= wins when both are present — a named period is the more specific
+  // intent. Either param missing or unparseable degrades silently, as above.
+  const qLat = clampCoord(lat, 90);
+  const qLng = clampCoord(lng, 180);
+  const initialRotation =
+    focusRotation ??
+    (qLat !== null && qLng !== null ? rotationForPoint(qLat, qLng) : null);
 
   return (
     <div className="space-y-6">

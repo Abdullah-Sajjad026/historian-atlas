@@ -173,9 +173,12 @@ export default async function PeriodPage({
               {events.map((e) => (
                 <li key={e.id}>
                   <div className="flex items-baseline gap-3">
-                    <span className="font-(family-name:--font-display) text-lg">
+                    <Link
+                      href={`/events/${e.id}`}
+                      className="font-(family-name:--font-display) text-lg hover:underline"
+                    >
                       {e.name}
-                    </span>
+                    </Link>
                     <span className="year ml-auto">
                       {formatYear(e.start_year)}
                       {e.end_year && e.end_year !== e.start_year
