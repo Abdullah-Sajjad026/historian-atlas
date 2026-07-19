@@ -22,7 +22,7 @@ year scrubber. Read `docs/` before non-trivial changes:
 
 ```bash
 npm run dev            # next dev (needs DATABASE_URL; defaults to localhost:5433/historian)
-npm test               # vitest — 59 tests, all pure-logic modules
+npm test               # vitest — 78 tests, all pure-logic modules
 npm run typecheck      # tsc --noEmit (TypeScript PINNED at 5.9 — see gotchas)
 npm run bootstrap      # db:migrate + seed (idempotent; re-run after content edits)
 npm run seed           # upsert content/spine/* into the DB

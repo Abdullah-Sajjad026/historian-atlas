@@ -96,6 +96,32 @@ Every entity page shows "what else was happening":
   Shining panel). Facets never touch lens ghosting and vice versa. All
   params compose: `?view=&genre=&civ=&lens=&modern=`; unknown values
   degrade silently like `?lens=`.
+- **Connections** (`?links=0` to hide; absent = on; checkbox next to the
+  view toggle): relationships between entities — embassy, war, trade,
+  journey, transmission — drawn as **great-circle arcs** between their
+  endpoints (d3 geoPath over a two-point LineString; clipAngle hides the
+  far side; no hand-rolled interpolation). Endpoints are entity refs
+  (period heartland / person place / event location) or literal places
+  (lat/lng/label — literals get a small mono label at the arc's end);
+  resolution is by `resolveEndpoints` (pure, tested) and IGNORES endpoint
+  lifetimes — a transmission may outlive its transmitters (Indian numerals
+  reach Baghdad c. 773, two centuries after the Gupta). Temporal life is
+  `linkAlpha`: range links REUSE the lifeFade ramp (the gold trade breathes
+  like an empire), point links flare in a tight ±8y pulse. Style: ink-soft
+  stroke, dash by kind (war solid, embassy [6,4], trade [10,6], journey
+  dotted [2,4], transmission [12,3,3,3]), +0.8px width at importance 1,
+  2.5px endpoint dots. A lens dims arcs by `linkLensAlpha` — the MAX of
+  lensAlpha over the ENTITY endpoints (touch one member and the arc stays
+  lit; literal endpoints contribute GHOST) — alpha only, like everything
+  else. **Facets do NOT filter arcs** — facets narrow PEOPLE only (the same
+  deliberate asymmetry as facets-vs-lens: a faceted People view still shows
+  the age's connections in full). The side panel's "Connections" section
+  lists links alive at T (mono kind glyph, first clause of the summary,
+  mono years, lens-ghosted at 40%); journey hops sharing a `group_id`
+  (Ibn Battuta's three) collapse to one entry showing the ACTIVE hop's
+  endpoints. Arcs are not hit-testable (open decision below); the panel is
+  the click surface. Zero-length arcs (both endpoints one city — the 1453
+  war) degrade to the endpoint dots under the heartland marker, verified.
 - **Modern borders** (`?modern=1`, checkbox in the controls row, default
   off): overlays today's country boundaries + labels so historical reach
   reads against the modern map ("what was on Pakistan's territory in
@@ -188,3 +214,11 @@ Structural edge cases the format has PROVEN (don't regress them):
 5. **Facets on the timeline people strip** — the genre/civilization facets
    exist only on the globe for now; extending them to the timeline strip is
    deliberately deferred until the globe UX settles.
+6. **Arc hit-testing** — connection arcs are not clickable/hoverable in v1
+   (DrawResult carries per-arc metadata, so the plumbing exists). Hit-testing
+   a thin curve needs distance-to-path math the dots/stars don't; decide
+   from real usage whether arcs deserve it or the panel entry suffices.
+7. **Event-page hubs** — links can reference events as endpoints, which
+   suggests event pages acting as connection hubs ("everything that met at
+   Talas"). Bundled with open decision #1 (events have no pages at all yet);
+   revisit both together.

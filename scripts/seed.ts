@@ -15,12 +15,18 @@ import {
   periods,
   people,
   events,
+  links,
   periodPeople,
   eventPeriods,
   themes,
   themeMemberships,
 } from "@/db/schema";
 import { spineModules, themeDefs } from "@content/spine/index";
+import type {
+  SpineLink,
+  SpineLinkEndpoint,
+  SpineModule,
+} from "@content/spine/types";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -34,8 +40,105 @@ if (!DATABASE_URL) {
 const client = postgres(DATABASE_URL, { max: 1 });
 const db = drizzle(client);
 
+// ---------------------------------------------------------------------------
+// Link lint — the DB deliberately doesn't enforce the endpoint rules (entity
+// refs aren't FKs so links can cross modules in any order), so the seed does:
+//  - each endpoint is (type+id) XOR (lat+lng+label) — the spine types make
+//    this structural, but re-check at runtime for anything the compiler
+//    can't see (hand-built objects, future JSON sources);
+//  - entity refs must resolve somewhere in the spine — a dangling id FAILS
+//    the whole seed loudly;
+//  - an endpoint that resolves but has no coordinates (person without a
+//    place, period without a heartland) only WARNS: the link seeds, the
+//    globe skips it (resolveEndpoints returns null), nothing crashes.
+// ---------------------------------------------------------------------------
+
+function lintLinks(mods: SpineModule[]): SpineLink[] {
+  const coords = {
+    period: new Map(
+      mods
+        .flatMap((m) => m.periods)
+        .map((p) => [p.id, p.centerLat != null && p.centerLng != null]),
+    ),
+    person: new Map(
+      mods
+        .flatMap((m) => m.people)
+        .map((p) => [p.id, p.lat != null && p.lng != null]),
+    ),
+    event: new Map(
+      mods
+        .flatMap((m) => m.events)
+        .map((e) => [e.id, e.lat != null && e.lng != null]),
+    ),
+  };
+
+  const all = mods.flatMap((m) => m.links ?? []);
+  const errors: string[] = [];
+  const seen = new Set<string>();
+
+  for (const link of all) {
+    if (seen.has(link.id)) errors.push(`${link.id}: duplicate link id`);
+    seen.add(link.id);
+
+    for (const [side, ep] of [
+      ["a", link.a],
+      ["b", link.b],
+    ] as const) {
+      const isRef = "type" in ep && "id" in ep;
+      const isLiteral = "lat" in ep && "lng" in ep && "label" in ep;
+      if (isRef === isLiteral) {
+        errors.push(
+          `${link.id} endpoint ${side}: must be (type+id) XOR (lat+lng+label)`,
+        );
+        continue;
+      }
+      if (isRef) {
+        const known = coords[ep.type];
+        if (!known.has(ep.id)) {
+          errors.push(
+            `${link.id} endpoint ${side}: dangling ${ep.type} ref '${ep.id}'`,
+          );
+        } else if (!known.get(ep.id)) {
+          console.warn(
+            `WARN ${link.id} endpoint ${side}: ${ep.type} '${ep.id}' has no coordinates — link will be skipped on the globe`,
+          );
+        }
+      }
+    }
+  }
+
+  if (errors.length) {
+    throw new Error(`Link lint failed:\n  ${errors.join("\n  ")}`);
+  }
+  return all;
+}
+
+/** Flatten one endpoint into its five nullable columns (a_* or b_*). */
+function endpointRow(side: "a" | "b", ep: SpineLinkEndpoint) {
+  const ref = "type" in ep ? ep : null;
+  const lit = "lat" in ep ? ep : null;
+  return {
+    [`${side}Type`]: ref?.type ?? null,
+    [`${side}Id`]: ref?.id ?? null,
+    [`${side}Lat`]: lit?.lat ?? null,
+    [`${side}Lng`]: lit?.lng ?? null,
+    [`${side}Label`]: lit?.label ?? null,
+  };
+}
+
 async function main() {
-  let counts = { periods: 0, people: 0, events: 0, links: 0, themes: 0 };
+  let counts = {
+    periods: 0,
+    people: 0,
+    events: 0,
+    links: 0,
+    connections: 0,
+    themes: 0,
+  };
+
+  // Lint BEFORE the transaction: a dangling link ref aborts the seed before
+  // any write happens.
+  const allLinks = lintLinks(spineModules);
 
   await db.transaction(async (tx) => {
     // Themes first — memberships reference them.
@@ -134,6 +237,29 @@ async function main() {
           counts.links++;
         }
       }
+    }
+
+    // Connections last, after every module's entities exist. Endpoint refs
+    // aren't FKs, so this is convention (mirrors the lint), not a constraint.
+    for (const link of allLinks) {
+      const row = {
+        id: link.id,
+        kind: link.kind,
+        ...endpointRow("a", link.a),
+        ...endpointRow("b", link.b),
+        startYear: link.startYear,
+        endYear: link.endYear ?? null,
+        certainty: link.certainty ?? ("exact" as const),
+        importance: link.importance ?? 3,
+        summary: link.summary,
+        groupId: link.groupId ?? null,
+        wikidataQid: link.wikidataQid ?? null,
+      };
+      await tx
+        .insert(links)
+        .values(row)
+        .onConflictDoUpdate({ target: links.id, set: row });
+      counts.connections++;
     }
   });
 

@@ -3,7 +3,7 @@
 ## The core loop
 
 1. Pure logic first: geometry/LOD/fade/lens/parse changes go in `src/lib/*`
-   with vitest coverage (`npm test` — currently 52 tests).
+   with vitest coverage (`npm test` — currently 78 tests).
 2. Paint changes go in the SHARED draw modules (`timeline-draw.ts`,
    `globe-draw.ts`) — never in a component, never forked.
 3. **Render previews and LOOK at them** (or audit them — below).
@@ -52,6 +52,23 @@ pixel vs bare-land pixel deltas).
 
 Keep audits as scratch scripts (they were deleted after use); resurrect the
 pattern from this description rather than maintaining them.
+
+## Prompt chains
+
+Work sometimes arrives as a SEQUENCE of prompts, each building on the
+last (foundation → patch → feature). Every prompt in a chain states its
+prerequisites — treat them as a hard guard:
+
+- Before writing anything, VERIFY each prerequisite actually exists in the
+  repo (schema columns, functions, preview frames, session logs — check
+  the artifacts, not just the git log message).
+- If ANY prerequisite is missing: **halt and report** what's absent.
+  Do NOT reconstruct missing prior work from what the current prompt
+  implies about it — a reconstruction silently diverges from the real
+  spec, and the next prompt in the chain will build on the divergence.
+- A prerequisite check that passes is worth one line in the session log
+  (what was verified, where); a check that fails is the session's entire
+  output.
 
 ## Database workflow
 

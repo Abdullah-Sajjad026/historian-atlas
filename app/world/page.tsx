@@ -1,8 +1,19 @@
 import { client } from "@/db/client";
-import type { GlobePeriod, GlobeEvent, GlobePerson } from "@/lib/globe";
+import {
+  resolveEndpoints,
+  type GlobePeriod,
+  type GlobeEvent,
+  type GlobePerson,
+  type ResolvedLink,
+} from "@/lib/globe";
 import type { GlobeView } from "@/lib/globe-draw";
 import { personRole } from "@/db/schema";
-import { getAllThemes, getThemeEntityIds, getGlobePeople } from "@/db/queries";
+import {
+  getAllThemes,
+  getThemeEntityIds,
+  getGlobePeople,
+  getGlobeLinks,
+} from "@/db/queries";
 import { LensPicker } from "../lens-picker";
 import GlobeClient from "./globe-client";
 
@@ -19,15 +30,24 @@ export default async function WorldPage({
     view?: string;
     genre?: string;
     civ?: string;
+    links?: string;
   }>;
 }) {
-  const { lens, modern, view, genre, civ } = await searchParams;
+  const { lens, modern, view, genre, civ, links } = await searchParams;
   const periods = await client<GlobePeriod[]>`
     SELECT id, name, region, start_year, end_year, center_lat, center_lng,
            influence_km, importance FROM periods`;
   const events = await client<GlobeEvent[]>`
     SELECT id, name, start_year, region, lat, lng, importance FROM events`;
   const people = (await getGlobePeople()) as GlobePerson[];
+
+  // Resolve connection endpoints server-side against the rows just loaded;
+  // unresolvable links (seed already warned) are skipped, never a crash.
+  const linkRows = await getGlobeLinks();
+  const resolvedLinks: ResolvedLink[] = linkRows.flatMap((link) => {
+    const eps = resolveEndpoints(link, { periods, people, events });
+    return eps ? [{ link, a: eps[0], b: eps[1] }] : [];
+  });
 
   const [themes, lensIds] = await Promise.all([
     getAllThemes(),
@@ -64,12 +84,14 @@ export default async function WorldPage({
         periods={periods}
         events={events}
         people={people}
+        links={resolvedLinks}
         minYear={minYear}
         maxYear={maxYear}
         lensPeriodIds={lensIds?.periodIds ?? null}
         lensEventIds={lensIds?.eventIds ?? null}
         lensPersonIds={lensIds?.personIds ?? null}
         initialModern={modern === "1"}
+        initialLinks={links !== "0"}
         initialView={initialView}
         initialGenres={initialGenres}
         initialCiv={initialCiv}

@@ -88,6 +88,15 @@ midpoint year. Abbasids (750–1258): midpoint 1004 falls after Tang (†907)
 and before the Mongols (1206) → empty rail despite 157 shared Tang years.
 Point sampling stays correct for people (lifespans are short).
 
+### ctx.setLineDash leaks into every later stroke
+A dash pattern set for one element (connection arcs, modern borders) stays
+on the context until explicitly cleared — there is no per-path dash. Every
+stroke drawn afterward (graticule next frame, circle outlines, star
+strokes) silently renders dashed. Always `ctx.setLineDash([])` immediately
+after the dashed stroke (the arc pass does both that AND a save/restore,
+belt and braces — restore() does reset the dash, but only if the save
+bracketed the setLineDash).
+
 ### d3-geo back-hemisphere points still project
 `projection([lng, lat])` returns coordinates for points on the FAR side of
 an orthographic globe (clipAngle only clips paths). Front-hemisphere test:

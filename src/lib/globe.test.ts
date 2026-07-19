@@ -14,8 +14,13 @@ import {
   fanOutCoincident,
   starPeople,
   NOMINAL_LIFESPAN,
+  resolveEndpoints,
+  linkAlpha,
+  linkLensAlpha,
+  LINK_PULSE_WINDOW,
   type GlobePeriod,
   type GlobePerson,
+  type GlobeLink,
 } from "./globe";
 
 function gp(over: Partial<GlobePeriod> & Pick<GlobePeriod, "id" | "start_year">): GlobePeriod {
@@ -209,6 +214,185 @@ describe("fanOutCoincident", () => {
       .map((p) => `${p.lat},${p.lng}`);
     expect(new Set(coords).size).toBe(3); // all three now distinct
     expect(coords).not.toContain("41.01,28.98"); // and none still stacked
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Connections
+// ---------------------------------------------------------------------------
+
+function link(
+  over: Partial<GlobeLink> & Pick<GlobeLink, "id" | "start_year">,
+): GlobeLink {
+  return {
+    kind: "embassy",
+    a_type: null,
+    a_id: null,
+    a_lat: null,
+    a_lng: null,
+    a_label: null,
+    b_type: null,
+    b_id: null,
+    b_lat: null,
+    b_lng: null,
+    b_label: null,
+    end_year: null,
+    importance: 3,
+    summary: null,
+    group_id: null,
+    ...over,
+  } as GlobeLink;
+}
+
+describe("resolveEndpoints", () => {
+  const data = {
+    periods: [
+      gp({ id: "abbasid-caliphate", start_year: 750, center_lat: 33.31, center_lng: 44.36 }),
+      gp({ id: "no-heartland", start_year: 700, center_lat: null, center_lng: null }),
+    ],
+    people: [
+      person({ id: "harun", birth_year: 763, lat: 33.31, lng: 44.36 }),
+      person({ id: "coordless", birth_year: 700, lat: null, lng: null }),
+    ],
+    events: [
+      { id: "talas", name: "Battle of Talas", start_year: 751, region: "east-asia", lat: 42.5, lng: 72.2, importance: 2 },
+    ],
+  };
+
+  it("resolves entity refs to heartland/place/event coords, literals pass through", () => {
+    const out = resolveEndpoints(
+      link({
+        id: "x",
+        start_year: 629,
+        a_type: "person",
+        a_id: "harun",
+        b_lat: 25.14,
+        b_lng: 85.44,
+        b_label: "Nalanda",
+      }),
+      data,
+    )!;
+    expect(out[0]).toMatchObject({ lat: 33.31, lng: 44.36, label: "harun", entityType: "person", entityId: "harun" });
+    expect(out[1]).toMatchObject({ lat: 25.14, lng: 85.44, label: "Nalanda", entityType: null, entityId: null });
+
+    const pe = resolveEndpoints(
+      link({ id: "y", start_year: 751, a_type: "period", a_id: "abbasid-caliphate", b_type: "event", b_id: "talas" }),
+      data,
+    )!;
+    expect(pe[0]).toMatchObject({ lat: 33.31, lng: 44.36, label: "abbasid-caliphate" });
+    expect(pe[1]).toMatchObject({ lat: 42.5, lng: 72.2, label: "Battle of Talas" });
+  });
+
+  it("returns null when either side is unresolvable — such links are skipped, never a crash", () => {
+    // person without coords
+    expect(
+      resolveEndpoints(
+        link({ id: "x", start_year: 700, a_type: "person", a_id: "coordless", b_lat: 0, b_lng: 0, b_label: "0,0" }),
+        data,
+      ),
+    ).toBeNull();
+    // period without a heartland
+    expect(
+      resolveEndpoints(
+        link({ id: "y", start_year: 700, a_type: "period", a_id: "no-heartland", b_type: "person", b_id: "harun" }),
+        data,
+      ),
+    ).toBeNull();
+    // dangling id (the seed lint fails these, but render must not crash)
+    expect(
+      resolveEndpoints(
+        link({ id: "z", start_year: 700, a_type: "period", a_id: "atlantis", b_type: "person", b_id: "harun" }),
+        data,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("linkAlpha", () => {
+  it("range links reuse the lifeFade ramp: the embassy peaks at 802, gone by 816", () => {
+    // Harun ↔ Charlemagne, 797–807: a 10-year range peaks mid-ramp.
+    const embassy = link({ id: "embassy", start_year: 797, end_year: 807 });
+    const at802 = linkAlpha(embassy, 802);
+    for (let y = 790; y <= 820; y++) {
+      expect(linkAlpha(embassy, y)).toBeLessThanOrEqual(at802); // 802 is the peak
+    }
+    expect(at802).toBeCloseTo(0.5);
+    expect(linkAlpha(embassy, 816)).toBe(0);
+  });
+  it("range links ramp like empires: the gold trade ramps at 905, full by 950", () => {
+    const trade = link({ id: "trade", start_year: 900, end_year: 1031 });
+    expect(linkAlpha(trade, 905)).toBeCloseTo(0.5);
+    expect(linkAlpha(trade, 950)).toBe(1);
+    expect(linkAlpha(trade, 899)).toBe(0);
+    expect(linkAlpha(trade, 1032)).toBe(0);
+  });
+  it("point links flare in a tight ±8y pulse window peaking at the year", () => {
+    const talas = link({ id: "talas", start_year: 751 });
+    expect(linkAlpha(talas, 751)).toBe(1);
+    expect(linkAlpha(talas, 755)).toBeCloseTo(0.5);
+    expect(linkAlpha(talas, 751 + LINK_PULSE_WINDOW)).toBe(0);
+    expect(linkAlpha(talas, 751 - LINK_PULSE_WINDOW - 1)).toBe(0);
+  });
+});
+
+describe("linkLensAlpha", () => {
+  const lens = {
+    periodIds: new Set(["abbasid-caliphate"]),
+    personIds: new Set(["harun"]),
+    eventIds: new Set<string>(),
+  };
+
+  it("is 1 with no lens active", () => {
+    expect(
+      linkLensAlpha(link({ id: "x", start_year: 700, a_type: "period", a_id: "tang-dynasty" })),
+    ).toBe(1);
+  });
+  it("keeps a link lit if ANY entity endpoint is a lens member", () => {
+    // member ↔ non-member: stays lit
+    expect(
+      linkLensAlpha(
+        link({ id: "x", start_year: 751, a_type: "period", a_id: "tang-dynasty", b_type: "period", b_id: "abbasid-caliphate" }),
+        lens,
+      ),
+    ).toBe(1);
+    // member ↔ literal: stays lit
+    expect(
+      linkLensAlpha(
+        link({ id: "y", start_year: 629, a_type: "person", a_id: "harun", b_lat: 25.14, b_lng: 85.44, b_label: "Nalanda" }),
+        lens,
+      ),
+    ).toBe(1);
+  });
+  it("ghosts links touching no member; literal endpoints contribute GHOST", () => {
+    // non-member ↔ non-member
+    expect(
+      linkLensAlpha(
+        link({ id: "x", start_year: 751, a_type: "period", a_id: "tang-dynasty", b_type: "period", b_id: "song-dynasty" }),
+        lens,
+      ),
+    ).toBe(GHOST_ALPHA);
+    // non-member ↔ literal
+    expect(
+      linkLensAlpha(
+        link({ id: "y", start_year: 602, a_type: "person", a_id: "xuanzang", b_lat: 25.14, b_lng: 85.44, b_label: "Nalanda" }),
+        lens,
+      ),
+    ).toBe(GHOST_ALPHA);
+    // literal ↔ literal
+    expect(
+      linkLensAlpha(
+        link({ id: "z", start_year: 1325, a_lat: 35.78, a_lng: -5.81, a_label: "Tangier", b_lat: 21.39, b_lng: 39.86, b_label: "Mecca" }),
+        lens,
+      ),
+    ).toBe(GHOST_ALPHA);
+  });
+  it("treats a missing set for an endpoint's type as empty, not as no-lens", () => {
+    expect(
+      linkLensAlpha(
+        link({ id: "x", start_year: 751, a_type: "event", a_id: "talas", b_type: "event", b_id: "talas" }),
+        { periodIds: new Set(["abbasid-caliphate"]) },
+      ),
+    ).toBe(GHOST_ALPHA);
   });
 });
 

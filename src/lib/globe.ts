@@ -52,9 +52,13 @@ export function kmToDegrees(km: number): number {
  * Returns 0..1 intensity (1 = the exact year), linear falloff over ±15y.
  */
 export const PULSE_WINDOW = 15;
-export function pulseIntensity(eventYear: number, year: number): number {
+export function pulseIntensity(
+  eventYear: number,
+  year: number,
+  window: number = PULSE_WINDOW,
+): number {
   const d = Math.abs(eventYear - year);
-  return d > PULSE_WINDOW ? 0 : 1 - d / PULSE_WINDOW;
+  return d > window ? 0 : 1 - d / window;
 }
 
 export function visibleEvents(
@@ -207,6 +211,154 @@ export function personFade(
   year: number,
 ): number {
   return lifeFade({ start_year: p.birth_year, end_year: p.death_year }, year);
+}
+
+// ---------------------------------------------------------------------------
+// Connections — links between entities, drawn as great-circle arcs
+// ---------------------------------------------------------------------------
+
+export type LinkKind =
+  | "embassy"
+  | "war"
+  | "trade"
+  | "journey"
+  | "transmission";
+export type LinkEndpointType = "period" | "person" | "event";
+
+/** A links row as read from the DB. Each endpoint is EITHER an entity ref
+ *  (type + id) or a literal place (lat + lng + label) — the seed lint
+ *  enforces the XOR, so exactly one shape is populated per side. */
+export interface GlobeLink {
+  id: string;
+  kind: LinkKind;
+  a_type: LinkEndpointType | null;
+  a_id: string | null;
+  a_lat: number | null;
+  a_lng: number | null;
+  a_label: string | null;
+  b_type: LinkEndpointType | null;
+  b_id: string | null;
+  b_lat: number | null;
+  b_lng: number | null;
+  b_label: string | null;
+  start_year: number;
+  end_year: number | null; // null = point link (short pulse window)
+  importance: number;
+  summary: string | null;
+  group_id: string | null;
+}
+
+export interface ResolvedEndpoint {
+  lat: number;
+  lng: number;
+  label: string;
+  /** Both null for literal endpoints — kept so the lens multiplier and the
+   *  panel know which endpoints are entities. */
+  entityType: LinkEndpointType | null;
+  entityId: string | null;
+}
+
+/** A link whose endpoints resolved to coordinates — what the draw consumes. */
+export interface ResolvedLink {
+  link: GlobeLink;
+  a: ResolvedEndpoint;
+  b: ResolvedEndpoint;
+}
+
+/**
+ * Resolve a link's endpoints to coordinates: period refs use the heartland,
+ * person refs the place of principal activity, event refs the event location;
+ * literal endpoints pass through. Resolution ignores endpoint LIFETIMES on
+ * purpose — a transmission can outlive its transmitters (Indian numerals
+ * reach Baghdad two centuries after the Gupta), so heartlands resolve
+ * regardless of whether the endpoint entity is alive at the link's years.
+ *
+ * Returns null if EITHER side can't resolve (unknown id, entity without
+ * coordinates) — callers skip such links; the seed lint already warned.
+ */
+export function resolveEndpoints(
+  link: GlobeLink,
+  data: { periods: GlobePeriod[]; people: GlobePerson[]; events: GlobeEvent[] },
+): [ResolvedEndpoint, ResolvedEndpoint] | null {
+  const one = (
+    type: LinkEndpointType | null,
+    id: string | null,
+    lat: number | null,
+    lng: number | null,
+    label: string | null,
+  ): ResolvedEndpoint | null => {
+    if (type === null) {
+      if (lat === null || lng === null) return null;
+      return { lat, lng, label: label ?? "", entityType: null, entityId: null };
+    }
+    if (id === null) return null;
+    let pt: { lat: number | null; lng: number | null; name: string } | undefined;
+    if (type === "period") {
+      const p = data.periods.find((p) => p.id === id);
+      if (p) pt = { lat: p.center_lat, lng: p.center_lng, name: p.name };
+    } else if (type === "person") {
+      const p = data.people.find((p) => p.id === id);
+      if (p) pt = { lat: p.lat, lng: p.lng, name: p.name };
+    } else {
+      const e = data.events.find((e) => e.id === id);
+      if (e) pt = { lat: e.lat, lng: e.lng, name: e.name };
+    }
+    if (!pt || pt.lat === null || pt.lng === null) return null;
+    return { lat: pt.lat, lng: pt.lng, label: pt.name, entityType: type, entityId: id };
+  };
+
+  const a = one(link.a_type, link.a_id, link.a_lat, link.a_lng, link.a_label);
+  const b = one(link.b_type, link.b_id, link.b_lat, link.b_lng, link.b_label);
+  return a && b ? [a, b] : null;
+}
+
+/**
+ * Link temporal alpha. Point links (end_year null) flare like events but in
+ * a tighter window — pulseIntensity with an ±8y window, peak 1 at the year.
+ * Range links breathe like empires — the SAME lifeFade ramp mapped over
+ * {start_year, end_year}, not a fork of it.
+ */
+export const LINK_PULSE_WINDOW = 8;
+export function linkAlpha(
+  link: Pick<GlobeLink, "start_year" | "end_year">,
+  year: number,
+): number {
+  if (link.end_year === null) {
+    return pulseIntensity(link.start_year, year, LINK_PULSE_WINDOW);
+  }
+  return lifeFade({ start_year: link.start_year, end_year: link.end_year }, year);
+}
+
+export interface LinkLensSets {
+  periodIds?: Set<string>;
+  personIds?: Set<string>;
+  eventIds?: Set<string>;
+}
+
+/**
+ * Lens interaction for links, with no schema change: the arc's multiplier is
+ * the MAX of lensAlpha over its ENTITY endpoints — a link touching any lens
+ * member stays lit. Literal endpoints contribute GHOST_ALPHA (a place is
+ * never a lens member), so a lens-outsider ↔ literal link ghosts as a whole.
+ * No active lens (undefined) = 1, like lensAlpha.
+ */
+export function linkLensAlpha(
+  link: Pick<GlobeLink, "a_type" | "a_id" | "b_type" | "b_id">,
+  lens?: LinkLensSets,
+): number {
+  if (!lens) return 1;
+  const one = (type: LinkEndpointType | null, id: string | null): number => {
+    if (type === null || id === null) return GHOST_ALPHA; // literal endpoint
+    const set =
+      type === "period"
+        ? lens.periodIds
+        : type === "person"
+          ? lens.personIds
+          : lens.eventIds;
+    // Lens active but no members of this type = an empty set, not "no lens".
+    return lensAlpha(id, set ?? new Set());
+  };
+  return Math.max(one(link.a_type, link.a_id), one(link.b_type, link.b_id));
 }
 
 /**
