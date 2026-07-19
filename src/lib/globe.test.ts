@@ -20,6 +20,7 @@ import {
   LINK_PULSE_WINDOW,
   rotationForPoint,
   clampYear,
+  clampCoord,
   MAX_PHI,
   type GlobePeriod,
   type GlobePerson,
@@ -150,6 +151,22 @@ describe("clampYear", () => {
     expect(clampYear(undefined, 300, 1600)).toBeNull();
     expect(clampYear("", 300, 1600)).toBeNull();
     expect(clampYear("tang", 300, 1600)).toBeNull();
+  });
+});
+
+describe("clampCoord", () => {
+  it("keeps the fraction — coordinates are not years", () => {
+    expect(clampCoord("33.31", 90)).toBeCloseTo(33.31);
+    expect(clampCoord("-77.03", 180)).toBeCloseTo(-77.03);
+  });
+  it("clamps into ±bound on both sides", () => {
+    expect(clampCoord("120", 90)).toBe(90);
+    expect(clampCoord("-300", 180)).toBe(-180);
+  });
+  it("returns null for absent, empty, or unparseable input", () => {
+    expect(clampCoord(undefined, 90)).toBeNull();
+    expect(clampCoord("", 90)).toBeNull();
+    expect(clampCoord("baghdad", 90)).toBeNull();
   });
 });
 

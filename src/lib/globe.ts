@@ -121,6 +121,22 @@ export function clampYear(
 }
 
 /**
+ * Parse-and-clamp for the ?lat=/?lng= URL params — the event-page entry hint
+ * (events have coordinates, not a ?focus= slug). Same null contract as
+ * clampYear, but coordinates keep their fraction and clamp into ±bound
+ * (90 for latitude, 180 for longitude).
+ */
+export function clampCoord(
+  raw: string | undefined,
+  bound: number,
+): number | null {
+  if (raw === undefined || raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(-bound, Math.min(bound, n));
+}
+
+/**
  * Lens ghosting: entities outside an active lens render dimmed, not hidden —
  * the lens is a spotlight on the world, not a filter that deletes it.
  * No lens (undefined) = everything at full strength.

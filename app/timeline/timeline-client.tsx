@@ -209,6 +209,7 @@ export default function TimelineClient({
       const hit = hitTest(st.layout, ev.clientX - rect.left, ev.clientY - rect.top);
       if (hit?.kind === "period") router.push(`/periods/${hit.id}`);
       else if (hit?.kind === "person") router.push(`/people/${hit.id}`);
+      else if (hit?.kind === "event") router.push(`/events/${hit.id}`);
     }
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("click", onClick);

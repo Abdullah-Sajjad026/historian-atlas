@@ -716,7 +716,9 @@ export default function GlobeClient({
             <ul className="space-y-2">
               {flaring.map((e) => (
                 <li key={e.id} className="text-sm">
-                  {e.name}
+                  <Link href={`/events/${e.id}`} className="hover:underline">
+                    {e.name}
+                  </Link>
                   <span className="year block">{formatYear(e.start_year)}</span>
                 </li>
               ))}

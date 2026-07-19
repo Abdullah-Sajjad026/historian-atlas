@@ -353,3 +353,5 @@ across ten modules. Highlights:
 | Silk Road lens people (v2) | Xuanzang, Marco Polo, Ibn Battuta | The road's actual travelers arrived with the people wave; court figures still don't qualify |
 | Sundiata × islamic-history | NOT a member | Whether his Mali was yet meaningfully Islamic is a live scholarly debate; the lens claim starts with Mansa Musa |
 | People-view labels | Stars labeled at imp ≤ 2, People view only | In Both, heartland serifs own the type layer; the Shining panel names everyone regardless |
+| Event-page rail | MeanwhileRail point-sample, reused verbatim | An event is a MOMENT — the point-vs-overlap rule puts it with people, not periods; no event-specific rail variant |
+| Event globe-door centering | `?lat=&lng=` beside `?focus=`, focus wins | Events have no focus-slug space; the extension stayed ~10 clean lines (`clampCoord` + same `rotationForPoint`), so centering shipped |

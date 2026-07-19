@@ -49,6 +49,12 @@ export interface EventRow {
   region: Region;
   importance: number;
   summary: string | null;
+  /** Present only on detail queries; curated fields always win at render. */
+  enrichment?: EnrichmentPayload | null;
+  /** Location — present only on detail queries; gates the event page's
+   *  "world in <year>" deep link's ?lat=&lng= centering hint. */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +224,127 @@ export async function getPersonDetail(
       : null;
 
   return { person, memberships, meanwhile };
+}
+
+export interface EventLinkRow {
+  id: string;
+  kind: "embassy" | "war" | "trade" | "journey" | "transmission";
+  start_year: number;
+  end_year: number | null;
+  summary: string | null;
+  /** The far side of the connection: an entity (pages can link to it) or a
+   *  literal place (label only). */
+  other:
+    | { type: "period" | "person" | "event"; id: string; name: string }
+    | { type: "place"; label: string | null };
+}
+
+export interface EventDetail {
+  event: EventRow;
+  /** Linked participants via event_periods. 0 is legal — the Hijra predates
+   *  every period in the atlas; the page honors that, it doesn't hide it. */
+  periods: PeriodRow[];
+  /** Connections touching this event as an endpoint — empty for most events
+   *  today; the page renders the section only when non-empty. */
+  links: EventLinkRow[];
+  /** The world at the event's moment: the shared point-sample slice, minus
+   *  this event itself — getTimeSlice's ±25y events window would otherwise
+   *  list the page's own subject (the same self-exclusion ConcurrentRail
+   *  does for periods). */
+  moment: TimeSlice;
+}
+
+export async function getEventDetail(id: string): Promise<EventDetail | null> {
+  const rows = await client<EventRow[]>`
+    SELECT id, name, start_year, end_year, certainty, region, importance,
+           summary, enrichment, lat, lng
+    FROM events WHERE id = ${id}`;
+  const event = rows[0];
+  if (!event) return null;
+
+  const [periods, linkRows, slice] = await Promise.all([
+    client<PeriodRow[]>`
+      SELECT p.id, p.name, p.kind, p.start_year, p.end_year, p.start_certainty,
+             p.end_certainty, p.region, p.parent_id, p.importance, p.summary
+      FROM periods p
+      JOIN event_periods ep ON ep.period_id = p.id
+      WHERE ep.event_id = ${id}
+      ORDER BY p.start_year ASC`,
+    client<
+      Array<{
+        id: string;
+        kind: EventLinkRow["kind"];
+        a_type: "period" | "person" | "event" | null;
+        a_id: string | null;
+        a_label: string | null;
+        b_type: "period" | "person" | "event" | null;
+        b_id: string | null;
+        b_label: string | null;
+        start_year: number;
+        end_year: number | null;
+        summary: string | null;
+      }>
+    >`
+      SELECT id, kind, a_type, a_id, a_label, b_type, b_id, b_label,
+             start_year, end_year, summary
+      FROM links
+      WHERE (a_type = 'event' AND a_id = ${id})
+         OR (b_type = 'event' AND b_id = ${id})
+      ORDER BY importance ASC, start_year ASC`,
+    getTimeSlice(event.start_year),
+  ]);
+
+  // Each link's OTHER endpoint (an event↔event link where this event is side
+  // A keeps side B, and vice versa), resolved to a display name so the page
+  // can link entity endpoints to their pages.
+  const others = linkRows.map((l) =>
+    l.a_type === "event" && l.a_id === id
+      ? { type: l.b_type, id: l.b_id, label: l.b_label }
+      : { type: l.a_type, id: l.a_id, label: l.a_label },
+  );
+  const namesFor = async (
+    type: "period" | "person" | "event",
+    table: "periods" | "people" | "events",
+  ): Promise<Map<string, string>> => {
+    const ids = [
+      ...new Set(
+        others.flatMap((o) => (o.type === type && o.id ? [o.id] : [])),
+      ),
+    ];
+    if (ids.length === 0) return new Map();
+    const named = await client<Array<{ id: string; name: string }>>`
+      SELECT id, name FROM ${client(table)} WHERE id = ANY(${ids}::text[])`;
+    return new Map(named.map((n) => [n.id, n.name]));
+  };
+  const names = {
+    period: await namesFor("period", "periods"),
+    person: await namesFor("person", "people"),
+    event: await namesFor("event", "events"),
+  };
+
+  const links: EventLinkRow[] = linkRows.map((l, i) => {
+    const o = others[i]!;
+    return {
+      id: l.id,
+      kind: l.kind,
+      start_year: l.start_year,
+      end_year: l.end_year,
+      summary: l.summary,
+      other:
+        o.type && o.id
+          ? // Entity ids aren't FKs (see schema) — a dangling id falls back
+            // to its slug rather than dropping the row.
+            { type: o.type, id: o.id, name: names[o.type].get(o.id) ?? o.id }
+          : { type: "place", label: o.label },
+    };
+  });
+
+  return {
+    event,
+    periods,
+    links,
+    moment: { ...slice, events: slice.events.filter((e) => e.id !== id) },
+  };
 }
 
 export interface ThemeDetail {

@@ -19,7 +19,7 @@ export interface SearchEntry {
 const HREF: Record<SearchEntry["type"], (id: string) => string> = {
   period: (id) => `/periods/${id}`,
   person: (id) => `/people/${id}`,
-  event: (id) => `/timeline`, // events have no page yet; land on the timeline
+  event: (id) => `/events/${id}`,
   theme: (id) => `/themes/${id}`,
 };
 
