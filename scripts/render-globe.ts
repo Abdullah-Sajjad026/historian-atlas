@@ -11,9 +11,16 @@ import type { Topology, GeometryCollection } from "topojson-specification";
 import worldData from "world-atlas/land-110m.json";
 import countriesData from "world-atlas/countries-110m.json";
 import { client } from "@/db/client";
-import { getGlobePeople } from "@/db/queries";
+import { getGlobePeople, getGlobeLinks } from "@/db/queries";
 import { bce } from "@/lib/dates";
-import { filterPeople, type GlobePeriod, type GlobeEvent, type GlobePerson } from "@/lib/globe";
+import {
+  filterPeople,
+  resolveEndpoints,
+  type GlobePeriod,
+  type GlobeEvent,
+  type GlobePerson,
+  type ResolvedLink,
+} from "@/lib/globe";
 import { drawGlobe, type GlobePalette, type GlobeView } from "@/lib/globe-draw";
 import { selectCountryLabels, type CountryFeature } from "@/lib/modern-borders";
 
@@ -54,6 +61,14 @@ async function main() {
 
   const people = (await getGlobePeople()) as GlobePerson[];
 
+  // Same composition as the world page: resolve link endpoints against the
+  // loaded rows, skip unresolvables.
+  const linkRows = await getGlobeLinks();
+  const resolvedLinks: ResolvedLink[] = linkRows.flatMap((link) => {
+    const eps = resolveEndpoints(link, { periods, people, events });
+    return eps ? [{ link, a: eps[0], b: eps[1] }] : [];
+  });
+
   const lensRows = await client<Array<{ entity_type: string; entity_id: string }>>`
     SELECT entity_type, entity_id FROM theme_memberships WHERE theme_id = 'islamic-history'`;
   const lensPeriodIds = new Set(lensRows.filter((r) => r.entity_type === "period").map((r) => r.entity_id));
@@ -88,6 +103,19 @@ async function main() {
     // shining on one hemisphere, with the Baghdad fan-out (Harun + al-Khwarizmi
     // + a 14-year-old al-Ma'mun at partial personFade).
     { year: 800, rotation: [-30, -35], out: "/tmp/globe-800-people.png", view: "people" },
+    // Connections frames:
+    // (a) THE frame — the Harun ↔ Charlemagne embassy arc spanning
+    //     Aachen↔Baghdad between two lit stars, dashed [6,4], at its 802 peak.
+    { year: 802, rotation: [-25, -40], out: "/tmp/globe-802-embassy.png", view: "people" },
+    // (b) 1453: war arc byzantine↔ottoman — BOTH endpoints are Constantinople,
+    //     a zero-length arc. Observed degradation (pixel-audited): the
+    //     LineString strokes nothing (butt caps on a zero-length path) and
+    //     the two 2.5px endpoint dots land under the heartland marker — a
+    //     compact dot cluster, no streak. Graceful.
+    { year: 1453, rotation: [-40, -30], out: "/tmp/globe-1453-war.png" },
+    // (c) 960 + islamic lens: saharan-gold trade arc full (Córdoba end is a
+    //     lens member — max rule keeps the whole arc lit), Talas long gone.
+    { year: 960, rotation: [6, -25], out: "/tmp/globe-960-lens-trade.png", lens: true },
   ];
 
   for (const fr of frames) {
@@ -102,6 +130,7 @@ async function main() {
       {
         width: size, height: size, rotation: fr.rotation, zoom: 1, year: fr.year,
         periods, events, land,
+        links: resolvedLinks,
         view: fr.view,
         // Same composition as the client: facets FILTER the people set...
         people: filterPeople(people, { genres: fr.genres, periodIds: fr.civ ? [fr.civ] : undefined }),
@@ -118,6 +147,10 @@ async function main() {
     writeFileSync(fr.out, canvas.toBuffer("image/png"));
     console.log(`wrote ${fr.out} — year ${fr.year}, heartlands: ${res.heartlands.map((h) => h.name).join(", ")}`);
     if (fr.view) console.log(`  stars: ${res.stars.map((h) => h.name).join(", ") || "(none)"}`);
+    if (res.arcs.length)
+      console.log(
+        `  arcs: ${res.arcs.map((a) => `${a.id}@${a.alpha.toFixed(2)}`).join(", ")}`,
+      );
   }
   await client.end();
 }

@@ -207,6 +207,59 @@ export const eventPeriods = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Links — connections between entities, drawn as great-circle arcs on the globe
+// ---------------------------------------------------------------------------
+
+export const linkKind = pgEnum("link_kind", [
+  "embassy",
+  "war",
+  "trade",
+  "journey",
+  "transmission",
+]);
+
+export const linkEndpointType = pgEnum("link_endpoint_type", [
+  "period",
+  "person",
+  "event",
+]);
+
+/**
+ * A relationship between two points in the graph — an embassy, a war, a trade
+ * route, a journey leg, a transmission of ideas — rendered as a great-circle
+ * arc between its endpoints while alive.
+ *
+ * Each endpoint is EITHER an entity reference (type + id, resolved to the
+ * entity's coordinates at render time: period heartland / person place /
+ * event location) OR a literal place (lat + lng + label). That XOR rule is
+ * enforced by the seed's lint pass and the spine types, not the DB — entity
+ * ids deliberately aren't FKs so links can cross content modules in any
+ * seeding order.
+ */
+export const links = pgTable("links", {
+  id: text("id").primaryKey(), // slug: 'embassy-harun-charlemagne'
+  kind: linkKind("kind").notNull(),
+  aType: linkEndpointType("a_type"),
+  aId: text("a_id"),
+  aLat: real("a_lat"),
+  aLng: real("a_lng"),
+  aLabel: text("a_label"),
+  bType: linkEndpointType("b_type"),
+  bId: text("b_id"),
+  bLat: real("b_lat"),
+  bLng: real("b_lng"),
+  bLabel: text("b_label"),
+  startYear: integer("start_year").notNull(),
+  endYear: integer("end_year"), // NULL = point link (single-year pulse window)
+  certainty: dateCertainty("certainty").notNull().default("exact"),
+  importance: smallint("importance").notNull().default(3),
+  summary: text("summary"),
+  /** Journey hops share one group_id (Ibn Battuta's three legs = one journey). */
+  groupId: text("group_id"),
+  wikidataQid: text("wikidata_qid"),
+});
+
+// ---------------------------------------------------------------------------
 // Themes — lenses over the graph
 // ---------------------------------------------------------------------------
 

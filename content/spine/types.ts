@@ -84,10 +84,44 @@ export interface SpineEvent {
   periodIds: string[]; // all periods this event touches
 }
 
+/**
+ * One side of a link: EITHER an entity reference (resolved to the entity's
+ * coordinates at render time — period heartland / person place / event
+ * location) OR a literal place. The union makes the XOR rule structural in
+ * the spine; the seed's lint pass re-checks it (and that entity refs
+ * resolve) because the DB stores both shapes in nullable columns.
+ */
+export type SpineLinkEndpoint =
+  | { type: "period" | "person" | "event"; id: string }
+  | { lat: number; lng: number; label: string };
+
+/**
+ * A connection between two points of the graph, drawn as a great-circle arc
+ * on the globe while alive. Entity endpoints are NOT database FKs — links may
+ * reference entities from any module, in any seeding order; the seed lint
+ * fails loudly on a dangling id instead.
+ */
+export interface SpineLink {
+  id: string;
+  kind: "embassy" | "war" | "trade" | "journey" | "transmission";
+  a: SpineLinkEndpoint;
+  b: SpineLinkEndpoint;
+  startYear: number;
+  endYear?: number | null; // omit/null = point link (short pulse window)
+  certainty?: Certainty;
+  importance?: 1 | 2 | 3 | 4 | 5; // defaults to 3
+  summary: string;
+  /** Journey hops share one groupId (the side panel collapses them). */
+  groupId?: string;
+  wikidataQid?: string;
+}
+
 export interface SpineModule {
   periods: SpinePeriod[];
   people: SpinePerson[];
   events: SpineEvent[];
+  /** Connections contributed by this module (endpoints may cross modules). */
+  links?: SpineLink[];
   /** theme id -> entity ids included in that lens */
   themeMemberships?: Record<
     string,

@@ -20,9 +20,13 @@ import {
   visibleEvents,
   personAliveAt,
   filterPeople,
+  linkAlpha,
+  linkLensAlpha,
   type GlobePeriod,
   type GlobeEvent,
   type GlobePerson,
+  type ResolvedLink,
+  type LinkKind,
 } from "@/lib/globe";
 import {
   drawGlobe,
@@ -53,10 +57,27 @@ const VIEW_LABEL: Record<GlobeView, string> = {
   both: "Both",
 };
 
+/** Mono kind glyphs for the Connections panel (X = transmission/exchange). */
+const KIND_GLYPH: Record<LinkKind, string> = {
+  embassy: "E",
+  war: "W",
+  trade: "T",
+  journey: "J",
+  transmission: "X",
+};
+
+/** First clause of a link summary — up to the first semicolon or em-dash. */
+function firstClause(summary: string | null): string {
+  return (summary ?? "").split(/[;—]/)[0]!.trim();
+}
+
 interface Props {
   periods: GlobePeriod[];
   events: GlobeEvent[];
   people: GlobePerson[];
+  /** Connections, endpoint-resolved server-side. NOT faceted — facets narrow
+   *  people only; the lens dims arcs via linkLensAlpha. */
+  links: ResolvedLink[];
   minYear: number;
   maxYear: number;
   lensPeriodIds: string[] | null;
@@ -64,6 +85,8 @@ interface Props {
   lensPersonIds: string[] | null;
   /** Initial state of the modern-borders overlay (?modern=1). */
   initialModern: boolean;
+  /** Initial state of the connections layer (?links=0 hides; absent = on). */
+  initialLinks: boolean;
   /** Initial view mode (?view=people|both; absent = periods). */
   initialView: GlobeView;
   /** Initial facets (?genre=a,b — pre-validated; ?civ=<period-id>). */
@@ -100,12 +123,14 @@ export default function GlobeClient({
   periods,
   events,
   people,
+  links,
   minYear,
   maxYear,
   lensPeriodIds,
   lensEventIds,
   lensPersonIds,
   initialModern,
+  initialLinks,
   initialView,
   initialGenres,
   initialCiv,
@@ -129,6 +154,7 @@ export default function GlobeClient({
   const [year, setYear] = useState(751);
   const [playing, setPlaying] = useState(false);
   const [modern, setModern] = useState(initialModern);
+  const [showLinks, setShowLinks] = useState(initialLinks);
   const [view, setView] = useState<GlobeView>(initialView);
   const [genres, setGenres] = useState<string[]>(initialGenres);
   const [civ, setCiv] = useState<string | null>(initialCiv);
@@ -163,6 +189,7 @@ export default function GlobeClient({
     size: 640,
     year: 751,
     modern: initialModern,
+    showLinks: initialLinks,
     view: initialView,
     people: [] as GlobePerson[],
     palette: null as GlobePalette | null,
@@ -186,6 +213,11 @@ export default function GlobeClient({
   }, [modern]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    st.current.showLinks = showLinks;
+    paint();
+  }, [showLinks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     st.current.view = view;
     paint();
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -198,6 +230,7 @@ export default function GlobeClient({
    *  ?lens=) without a navigation — the repaint already happened from state. */
   function syncUrl(next: {
     modern?: boolean;
+    links?: boolean;
     view?: GlobeView;
     genres?: string[];
     civ?: string | null;
@@ -208,6 +241,8 @@ export default function GlobeClient({
       else params.delete(key);
     };
     set("modern", (next.modern ?? modern) ? "1" : null);
+    // Connections default ON: the param only appears to turn them OFF.
+    set("links", (next.links ?? showLinks) ? null : "0");
     const v = next.view ?? view;
     set("view", v === "periods" ? null : v);
     const g = next.genres ?? genres;
@@ -220,6 +255,11 @@ export default function GlobeClient({
   function toggleModern(next: boolean) {
     setModern(next);
     syncUrl({ modern: next });
+  }
+
+  function toggleLinks(next: boolean) {
+    setShowLinks(next);
+    syncUrl({ links: next });
   }
 
   function switchView(next: GlobeView) {
@@ -264,6 +304,8 @@ export default function GlobeClient({
         events,
         view: s.view,
         people: s.people,
+        links,
+        showConnections: s.showLinks,
         land,
         lensPeriodIds: lensP,
         lensEventIds: lensE,
@@ -390,6 +432,43 @@ export default function GlobeClient({
     [filtered, displayYear],
   );
 
+  // Lens sets in the shape linkLensAlpha wants (undefined = no lens active).
+  const linkLens = useMemo(
+    () =>
+      lensP || lensE || lensPer
+        ? { periodIds: lensP, personIds: lensPer, eventIds: lensE }
+        : undefined,
+    [lensP, lensE, lensPer],
+  );
+
+  // Connections active at T. Journey hops sharing a group_id collapse to one
+  // entry — the hop most alive at the scrubbed year represents the journey.
+  const activeLinks = useMemo(() => {
+    if (!showLinks) return [];
+    const singles: ResolvedLink[] = [];
+    const groups = new Map<string, ResolvedLink[]>();
+    for (const rl of links) {
+      if (linkAlpha(rl.link, displayYear) <= 0) continue;
+      if (rl.link.group_id) {
+        const g = groups.get(rl.link.group_id);
+        if (g) g.push(rl);
+        else groups.set(rl.link.group_id, [rl]);
+      } else {
+        singles.push(rl);
+      }
+    }
+    const collapsed = [...groups.values()].map((hops) =>
+      hops.reduce((best, h) =>
+        linkAlpha(h.link, displayYear) > linkAlpha(best.link, displayYear) ? h : best,
+      ),
+    );
+    return [...singles, ...collapsed].sort(
+      (x, y) =>
+        x.link.importance - y.link.importance ||
+        x.link.start_year - y.link.start_year,
+    );
+  }, [links, showLinks, displayYear]);
+
   const showPeople = view !== "periods";
   const pill = (selected: boolean) =>
     `px-3 py-1 text-sm border ${
@@ -408,6 +487,15 @@ export default function GlobeClient({
               {VIEW_LABEL[v]}
             </button>
           ))}
+          <label className="flex items-center gap-1.5 text-sm whitespace-nowrap cursor-pointer select-none ml-2">
+            <input
+              type="checkbox"
+              checked={showLinks}
+              onChange={(e) => toggleLinks(e.target.checked)}
+              className="accent-(--color-ink)"
+            />
+            Connections
+          </label>
         </div>
         {showPeople && (
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -540,6 +628,39 @@ export default function GlobeClient({
             </ul>
           )}
         </div>
+        {activeLinks.length > 0 && (
+          <div>
+            <p className="eyebrow mb-2">Connections</p>
+            <ul className="space-y-2">
+              {activeLinks.map((rl) => {
+                const l = rl.link;
+                const ghosted = linkLens && linkLensAlpha(l, linkLens) < 1;
+                return (
+                  <li
+                    key={l.group_id ?? l.id}
+                    className={`flex items-baseline gap-2.5 text-sm ${ghosted ? "opacity-40" : ""}`}
+                  >
+                    <span className="year" title={l.kind}>
+                      {KIND_GLYPH[l.kind]}
+                    </span>
+                    <span>
+                      {/* A collapsed journey shows the ACTIVE hop's endpoints;
+                          single links lead with their summary's first clause. */}
+                      {l.group_id
+                        ? `${rl.a.label} ↔ ${rl.b.label}`
+                        : firstClause(l.summary)}
+                      <span className="year block">
+                        {l.end_year === null
+                          ? formatYear(l.start_year)
+                          : `${formatYear(l.start_year)}–${formatYear(l.end_year)}`}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
         {flaring.length > 0 && (
           <div>
             <p className="eyebrow mb-2">Flaring</p>

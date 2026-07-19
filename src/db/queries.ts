@@ -333,6 +333,40 @@ export async function getGlobePeople() {
     ORDER BY p.importance ASC, p.birth_year ASC`;
 }
 
+/**
+ * Connections for the globe — every link, typed as GlobeLink rows. The
+ * caller resolves endpoints against the periods/people/events it already
+ * loaded (resolveEndpoints in src/lib/globe.ts) and skips unresolvables.
+ */
+export async function getGlobeLinks() {
+  return client<
+    Array<{
+      id: string;
+      kind: "embassy" | "war" | "trade" | "journey" | "transmission";
+      a_type: "period" | "person" | "event" | null;
+      a_id: string | null;
+      a_lat: number | null;
+      a_lng: number | null;
+      a_label: string | null;
+      b_type: "period" | "person" | "event" | null;
+      b_id: string | null;
+      b_lat: number | null;
+      b_lng: number | null;
+      b_label: string | null;
+      start_year: number;
+      end_year: number | null;
+      importance: number;
+      summary: string | null;
+      group_id: string | null;
+    }>
+  >`
+    SELECT id, kind, a_type, a_id, a_lat, a_lng, a_label,
+           b_type, b_id, b_lat, b_lng, b_label,
+           start_year, end_year, importance, summary, group_id
+    FROM links
+    ORDER BY importance ASC, start_year ASC`;
+}
+
 /** Flat entity index for the header search box. */
 export async function getSearchIndex() {
   const [periods, people, events, themes] = await Promise.all([

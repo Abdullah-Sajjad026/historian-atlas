@@ -26,6 +26,15 @@ circles, lens ghosting) is a projection of this graph.
   periods via `event_periods` (0 is legal — see the Hijra).
 - **themes** + `theme_memberships` (polymorphic: entity_type + entity_id;
   FK enforced in app layer by seed construction, not the DB).
+- **links**: connections drawn as great-circle arcs on the globe. `kind`
+  enum (embassy/war/trade/journey/transmission); endpoints A and B are
+  each EITHER an entity ref (`a_type` + `a_id`) OR a literal place
+  (`a_lat`/`a_lng`/`a_label`) — the XOR is enforced by the spine types and
+  the seed's lint pass, NOT the DB (entity ids deliberately aren't FKs so
+  links can cross content modules in any seed order; a dangling id fails
+  the seed loudly instead). `start_year`/`end_year` (NULL = point link),
+  `certainty`, `importance`, `summary`, `group_id` (journey hops share
+  one), `wikidata_qid`.
 - Join table `period_people` carries a `role` enum (ruler/scholar/...).
 
 ### Generated columns & indexes (drizzle/0001_ranges.sql)
@@ -59,6 +68,9 @@ cycle). `EXPLAIN` confirms `Index Scan using periods_slice_idx` for
   People-view facets, region still borrowed from the earliest period.
   The `::text` cast on the role agg matters: postgres.js parses `text[]`
   natively but not arrays of custom enums.
+- `getGlobeLinks()` — all links rows; callers resolve endpoints against the
+  entity rows they already loaded (`resolveEndpoints`) and skip
+  unresolvables.
 - `getSearchIndex()` — flat name index for the header search.
 
 ## Rendering: three canvases, zero forked draw code
@@ -113,12 +125,25 @@ Georgia, which measures close enough for label decisions).
   `src/lib/modern-borders.ts` (also pure/tested): `selectCountryLabels` —
   geoArea threshold + allowlist over countries-110m features, geoCentroid
   positions — feeding the optional modern-borders overlay.
+  Connections (also pure/tested): `resolveEndpoints` (entity ref →
+  heartland/place/event coords, literal passthrough; null if either side
+  can't resolve — callers skip, never crash; deliberately ignores endpoint
+  lifetimes), `linkAlpha` (range links REUSE lifeFade over
+  {start_year, end_year}; point links reuse pulseIntensity with a tighter
+  ±8y window — pulseIntensity gained an optional `window` param, no fork),
+  `linkLensAlpha` (max of lensAlpha over ENTITY endpoints; literal
+  endpoints contribute GHOST; alpha only, like every lens effect).
 - Paint: d3-geo orthographic + geoPath(ctx). Order: ground shadow →
   lit sphere (radial gradient, upper-left light) → graticule → land
   (world-atlas land-110m TopoJSON, bundled) → modern borders if enabled
   (dashed hairline, under the pigments) → influence circles
   (halo + core + stroke) → modern country labels if enabled (uppercase
-  mono, receding) → heartland dots + halo-stroked serif labels, deferred
+  mono, receding) → connection arcs if `showConnections` (default true) —
+  geoPath over a two-point LineString (d3 interpolates the great circle,
+  clipAngle clips the far side), ink-soft stroke at
+  linkAlpha × linkLensAlpha, dash by kind, 2.5px endpoint dots + mono
+  labels for literal endpoints, `DrawResult.arcs` metadata (no
+  hit-testing v1) — → heartland dots + halo-stroked serif labels, deferred
   to a final pass so they top both the fills and the modern labels
   (front-hemisphere test via a tiny geoCircle's projected area, because
   projection() returns coords even for back-hemisphere points — shared

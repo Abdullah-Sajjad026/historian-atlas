@@ -24,9 +24,14 @@ import {
   kmToDegrees,
   lifeFade,
   lensAlpha,
+  linkAlpha,
+  linkLensAlpha,
   type GlobePeriod,
   type GlobeEvent,
   type GlobePerson,
+  type ResolvedLink,
+  type ResolvedEndpoint,
+  type LinkKind,
 } from "./globe";
 import type { CountryLabel } from "./modern-borders";
 
@@ -69,7 +74,23 @@ export interface GlobeFrame {
    *  outside the lens/lifeFade systems: it is the same in every year and
    *  never ghosts (it is the reference grid the lens is read against). */
   modern?: ModernOverlay;
+  /** Connections (resolved by the shells via resolveEndpoints) drawn as
+   *  great-circle arcs while alive. Facets never narrow this list — facets
+   *  filter PEOPLE only; the lens dims arcs via linkLensAlpha. */
+  links?: ResolvedLink[];
+  /** Defaults to true; the ?links=0 escape hatch. */
+  showConnections?: boolean;
 }
+
+/** Dash vocabulary by link kind — war reads solid, everything else dashed
+ *  distinctly enough to tell apart at a glance. */
+const LINK_DASH: Record<LinkKind, number[]> = {
+  war: [],
+  embassy: [6, 4],
+  trade: [10, 6],
+  journey: [2, 4],
+  transmission: [12, 3, 3, 3],
+};
 
 export interface ModernOverlay {
   /** Toggle here (not by omitting the object) so callers keep the geometry
@@ -94,6 +115,18 @@ export interface DrawResult {
   heartlands: Array<{ id: string; name: string; x: number; y: number; region: string }>;
   /** Screen positions of drawn person stars, same contract as heartlands. */
   stars: Array<{ id: string; name: string; x: number; y: number; region: string }>;
+  /** Metadata for each arc actually stroked this frame (panel/audit use).
+   *  Endpoint screen coords are null when that end is on the back
+   *  hemisphere. Arcs are NOT hit-tested in v1 — open decision in
+   *  docs/features.md. */
+  arcs: Array<{
+    id: string;
+    kind: LinkKind;
+    groupId: string | null;
+    alpha: number;
+    a: { label: string; x: number; y: number } | null;
+    b: { label: string; x: number; y: number } | null;
+  }>;
 }
 
 // Structural type so both DOM and node-canvas contexts satisfy it.
@@ -250,6 +283,82 @@ export function drawGlobe(ctx: Ctx, f: GlobeFrame, P: GlobePalette): DrawResult 
     ctx.restore(); // restores textAlign for anything drawn after
   }
 
+  // Connections: great-circle arcs between endpoints, alive by linkAlpha,
+  // dimmed (never hidden) by the lens through linkLensAlpha. Positioned after
+  // the influence circles so arcs read over the pigment fills, before the
+  // event pulses; the deferred serif labels and the stars still paint later —
+  // the type layer and the endpoint stars always win over a hairline arc.
+  // geoPath interpolates the great circle from a two-point LineString and
+  // clipAngle hides the far side — no hand-rolled interpolation.
+  const arcs: DrawResult["arcs"] = [];
+  if ((f.showConnections ?? true) && f.links?.length) {
+    const lensActive =
+      f.lensPeriodIds || f.lensEventIds || f.lensPersonIds
+        ? {
+            periodIds: f.lensPeriodIds,
+            personIds: f.lensPersonIds,
+            eventIds: f.lensEventIds,
+          }
+        : undefined;
+    ctx.save();
+    for (const { link, a, b } of f.links) {
+      const alpha = linkAlpha(link, f.year) * linkLensAlpha(link, lensActive);
+      if (alpha <= 0) continue;
+
+      ctx.setLineDash(LINK_DASH[link.kind]);
+      ctx.strokeStyle = withAlpha(P.soft, alpha);
+      ctx.lineWidth = 1 + (link.importance === 1 ? 0.8 : 0);
+      ctx.beginPath();
+      path({
+        type: "LineString",
+        coordinates: [
+          [a.lng, a.lat],
+          [b.lng, b.lat],
+        ],
+      });
+      ctx.stroke();
+      // Reset the dash IMMEDIATELY — a leaked dash pattern re-styles every
+      // later stroke in the frame (gotcha-class bug; see docs/gotchas.md).
+      ctx.setLineDash([]);
+
+      // Small filled dots pin the arc's visible ends; literal endpoints also
+      // get their place name in the small mono style (entities already have
+      // heartland/star labels of their own).
+      const ends: Array<["a" | "b", ResolvedEndpoint]> = [["a", a], ["b", b]];
+      const meta: DrawResult["arcs"][number] = {
+        id: link.id,
+        kind: link.kind,
+        groupId: link.group_id,
+        alpha,
+        a: null,
+        b: null,
+      };
+      for (const [side, ep] of ends) {
+        if (!onFront(ep.lng, ep.lat)) continue;
+        const pt = projection([ep.lng, ep.lat]);
+        if (!pt) continue;
+        meta[side] = { label: ep.label, x: pt[0], y: pt[1] };
+        ctx.fillStyle = withAlpha(P.soft, alpha);
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        if (ep.entityType === null) {
+          ctx.font = "9px ui-monospace, Menlo, Consolas, 'Courier New', monospace";
+          ctx.textAlign = "center";
+          const text = ep.label.toUpperCase();
+          ctx.strokeStyle = withAlpha("#f6f0e2", 0.8);
+          ctx.lineWidth = 2.5;
+          ctx.strokeText(text, pt[0], pt[1] - 6);
+          ctx.fillStyle = withAlpha(P.soft, Math.min(0.55, alpha));
+          ctx.fillText(text, pt[0], pt[1] - 6);
+          ctx.textAlign = "left";
+        }
+      }
+      arcs.push(meta);
+    }
+    ctx.restore(); // belt-and-braces: also restores dash/textAlign
+  }
+
   // Heartland markers + serif names, above everything the circles laid down.
   for (const h of deferred) {
     ctx.globalAlpha = h.ghosted ? 0.35 : 1;
@@ -348,5 +457,5 @@ export function drawGlobe(ctx: Ctx, f: GlobeFrame, P: GlobePalette): DrawResult 
     }
   }
 
-  return { heartlands, stars };
+  return { heartlands, stars, arcs };
 }

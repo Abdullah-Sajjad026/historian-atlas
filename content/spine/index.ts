@@ -19,6 +19,7 @@ import { maurya } from "./maurya";
 import { delhiSultanate } from "./delhi-sultanate";
 import { mughal } from "./mughal";
 import { silkRoadEvents } from "./silk-road-events";
+import { connections } from "./connections";
 
 export const spineModules: SpineModule[] = [
   islamicBookends, // before abbasid: umayyad.parentId references rashidun
@@ -35,6 +36,7 @@ export const spineModules: SpineModule[] = [
   delhiSultanate, // before mughal: mughal-empire.parentId references it
   mughal,
   silkRoadEvents, // after tang/song/abbasid/world: silk-road lens references them
+  connections, // order-independent: link endpoint refs are lint-checked, not FKs
   // next: abbasid-cairo.ts, aztec.ts, ...
 ];
 

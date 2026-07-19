@@ -86,6 +86,36 @@ array is legal for events predating all periods (Hijra).
 defined centrally in `content/spine/index.ts` (`themeDefs`), memberships
 declared per-module.
 
+## Authoring links (connections)
+
+`SpineModule.links` holds connections — embassy/war/trade/journey/
+transmission — drawn as great-circle arcs on the globe. Cross-module links
+live in `content/spine/connections.ts`; a link that clearly belongs to one
+module's story may live there instead.
+
+- **Endpoints: entity XOR literal.** Each side is EITHER
+  `{ type: "period"|"person"|"event", id }` (resolved at render time to the
+  heartland / place of principal activity / event location) OR
+  `{ lat, lng, label }` for a place that isn't an entity (Nalanda,
+  Tangier). Never both — the types make it structural and the seed lint
+  re-checks it.
+- **Refs are lint-checked, not FKs.** Endpoint ids may reference any
+  module in any order; a dangling id FAILS the seed loudly. An endpoint
+  that exists but has no coordinates only WARNS — the link seeds, the
+  globe skips it.
+- **Years.** `endYear` null/omitted = point link (a tight ±8y flare, like
+  a small event pulse); a range breathes with the lifeFade ramp. A link's
+  years may legally fall OUTSIDE an endpoint's lifetime — transmissions
+  outlive their transmitters (Indian numerals reach Baghdad c. 773, two
+  centuries after the Gupta ends); endpoints resolve to heartlands
+  regardless. Comment the intent when you use this.
+- **Journeys: shared `groupId`.** Multi-hop journeys (Ibn Battuta:
+  Tangier→Mecca→Delhi→Khanbaliq) are one link per hop sharing a `groupId`;
+  the side panel collapses them into a single entry showing whichever hop
+  is active at the scrubbed year. Keep per-hop summaries on one shared
+  theme so the collapsed entry reads coherently.
+- **importance** defaults to 3; importance 1 arcs draw slightly heavier.
+
 ## Patterns with worked examples
 
 - **Stub predecessor** so a succession chain resolves before the full
