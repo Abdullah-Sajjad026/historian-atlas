@@ -13,7 +13,8 @@
     "build": "next build",
     "start": "next start",
     "enrich": "tsx --tsconfig tsconfig.json scripts/enrich.ts",
-    "bootstrap": "npm run db:migrate && npm run seed"
+    "bootstrap": "npm run db:migrate && npm run seed",
+    "deploy:bootstrap": "tsx --tsconfig tsconfig.json scripts/deploy-bootstrap.ts"
   },
   "keywords": [],
   "author": "",

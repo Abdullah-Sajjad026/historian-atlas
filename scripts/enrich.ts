@@ -14,12 +14,22 @@
  *   - Needs egress to wikidata.org (run from your machine, not a sandboxed env).
  */
 
-import { client } from "@/db/client";
+import postgres from "postgres";
 import {
   parseEntity,
   entityDataUrl,
   labelLooksWrong,
 } from "@/lib/enrich";
+
+// Own client rather than the shared runtime one (src/db/client.ts): scripts
+// prefer the DIRECT (unpooled) connection — against Neon, DATABASE_URL is
+// the pooled string for the app and DIRECT_DATABASE_URL is for
+// migrations/seed/enrich. Locally only DATABASE_URL is set; same behavior.
+const DATABASE_URL =
+  process.env.DIRECT_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  "postgres://postgres:docker@localhost:5433/historian";
+const client = postgres(DATABASE_URL, { max: 1 });
 
 const USER_AGENT =
   "historian-atlas/0.1 (personal history-atlas project; enrichment script)";

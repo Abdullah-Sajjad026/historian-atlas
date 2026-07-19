@@ -10,6 +10,10 @@ on:
   pull_request:
 
 jobs:
+  # This job runs entirely against its own throwaway postgres service below —
+  # CI never touches production. Neon/Vercel credentials (DATABASE_URL,
+  # DIRECT_DATABASE_URL) are not configured here and must never be: the prod
+  # bootstrap is a manual, from-your-machine step (docs/deploy.md).
   test-and-build:
     runs-on: ubuntu-latest
     services:

@@ -28,7 +28,12 @@ import type {
   SpineModule,
 } from "@content/spine/types";
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// Scripts prefer the DIRECT (unpooled) connection when one is configured —
+// against Neon, DATABASE_URL is the pooled string for the app runtime and
+// DIRECT_DATABASE_URL is for migrations/seed/enrich. Locally only
+// DATABASE_URL is set and nothing changes.
+const DATABASE_URL =
+  process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error("DATABASE_URL is required. Example:");
   console.error(

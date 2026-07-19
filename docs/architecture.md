@@ -220,7 +220,29 @@ Commons `Special:FilePath/<file>?width=` with attribution caption.
 
 ## Deployment
 
-`output: "standalone"` in next.config.ts. Dockerfile stages:
+### DB client env behavior (`src/db/client.ts`)
+
+One postgres.js client, tuned by env at RUNTIME only (the build never
+connects — postgres.js is lazy and every page is force-dynamic):
+
+- `DATABASE_URL` — the runtime connection. On Vercel this is Neon's
+  **pooled** string (`-pooler` host).
+- TLS: `ssl: "require"` when the URL contains `sslmode=require` or
+  `DATABASE_SSL=true` is set; plain otherwise (local docker).
+- Pool: `max: 1` when `VERCEL` is set (one lambda = one process; Neon's
+  pooler multiplexes), `max: 5` locally. `idle_timeout: 20`,
+  `connect_timeout: 10`.
+- `DIRECT_DATABASE_URL` — **scripts only** (never read by the runtime
+  client): drizzle.config.ts, seed, enrich, and `deploy:bootstrap` prefer
+  it over `DATABASE_URL`, because migrations/DDL through a transaction
+  pooler are unreliable. `deploy:bootstrap` hard-requires it.
+
+Full Vercel + Neon runbook: `docs/deploy.md`. Driver stays postgres.js
+(`@neondatabase/serverless` is a noted future option, not a need).
+
+### Docker / self-hosted
+
+`output: "standalone"` in next.config.ts (Vercel ignores it). Dockerfile stages:
 deps → builder → **tools** (dev deps kept; compose `migrate` service runs
 `npm run bootstrap` here) → runner (pruned standalone, non-root).
 Compose: pgvector db on host **5433** (avoid local-pg clash) → migrate

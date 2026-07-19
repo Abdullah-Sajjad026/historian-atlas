@@ -10,6 +10,7 @@ year scrubber. Read `docs/` before non-trivial changes:
 - `docs/content-guide.md` — how to author spine modules (the content format)
 - `docs/gotchas.md` — landmines already stepped on; read before touching build/db/canvas
 - `docs/workflow.md` — the preview-harness dev loop (how this repo verifies visuals)
+- `docs/deploy.md` — Vercel + Neon runbook (pooled vs direct connection strings)
 - `docs/sessions/` — per-session work logs (history, not state). At the END
   of any session that changed the repo, append a `YYYY-MM-DD-<slug>.md`
   following the convention in `docs/sessions/README.md`.
@@ -25,6 +26,7 @@ npm run dev            # next dev (needs DATABASE_URL; defaults to localhost:543
 npm test               # vitest — 78 tests, all pure-logic modules
 npm run typecheck      # tsc --noEmit (TypeScript PINNED at 5.9 — see gotchas)
 npm run bootstrap      # db:migrate + seed (idempotent; re-run after content edits)
+npm run deploy:bootstrap  # same, but REQUIRES DIRECT_DATABASE_URL (prod — see docs/deploy.md)
 npm run seed           # upsert content/spine/* into the DB
 npm run enrich         # Wikidata enrichment — needs egress to wikidata.org
 npm run db:generate    # drizzle-kit generate (after schema.ts changes)
