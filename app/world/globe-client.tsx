@@ -3,7 +3,8 @@
 /**
  * Interactive globe. All painting is src/lib/globe-draw.ts (shared with the
  * preview script); this component owns only interaction state: rotation drag,
- * wheel zoom, the year scrubber, play mode, and heartland click-through.
+ * wheel zoom, the year scrubber, play mode, view/facet state, and
+ * heartland/star click-through.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -17,10 +18,18 @@ import type { Region } from "@/db/schema";
 import {
   activeAt,
   visibleEvents,
+  personAliveAt,
+  filterPeople,
   type GlobePeriod,
   type GlobeEvent,
+  type GlobePerson,
 } from "@/lib/globe";
-import { drawGlobe, type GlobePalette, type DrawResult } from "@/lib/globe-draw";
+import {
+  drawGlobe,
+  type GlobePalette,
+  type DrawResult,
+  type GlobeView,
+} from "@/lib/globe-draw";
 import { selectCountryLabels, type CountryFeature } from "@/lib/modern-borders";
 import { formatYearDual, formatYear } from "@/lib/dates";
 import { REGION_LABEL, RegionTick } from "../components";
@@ -38,15 +47,30 @@ const countryLabels = selectCountryLabels(
 
 const PLAY_YEARS_PER_SEC = 14;
 
+const VIEW_LABEL: Record<GlobeView, string> = {
+  periods: "Empires",
+  people: "People",
+  both: "Both",
+};
+
 interface Props {
   periods: GlobePeriod[];
   events: GlobeEvent[];
+  people: GlobePerson[];
   minYear: number;
   maxYear: number;
   lensPeriodIds: string[] | null;
   lensEventIds: string[] | null;
+  lensPersonIds: string[] | null;
   /** Initial state of the modern-borders overlay (?modern=1). */
   initialModern: boolean;
+  /** Initial view mode (?view=people|both; absent = periods). */
+  initialView: GlobeView;
+  /** Initial facets (?genre=a,b — pre-validated; ?civ=<period-id>). */
+  initialGenres: string[];
+  initialCiv: string | null;
+  /** Role-enum order, so genre chips render in a stable canonical order. */
+  genreOrder: readonly string[];
 }
 
 function readPalette(): GlobePalette {
@@ -75,11 +99,17 @@ function readPalette(): GlobePalette {
 export default function GlobeClient({
   periods,
   events,
+  people,
   minYear,
   maxYear,
   lensPeriodIds,
   lensEventIds,
+  lensPersonIds,
   initialModern,
+  initialView,
+  initialGenres,
+  initialCiv,
+  genreOrder,
 }: Props) {
   const lensP = useMemo(
     () => (lensPeriodIds ? new Set(lensPeriodIds) : undefined),
@@ -89,12 +119,42 @@ export default function GlobeClient({
     () => (lensEventIds ? new Set(lensEventIds) : undefined),
     [lensEventIds],
   );
+  const lensPer = useMemo(
+    () => (lensPersonIds ? new Set(lensPersonIds) : undefined),
+    [lensPersonIds],
+  );
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [year, setYear] = useState(751);
   const [playing, setPlaying] = useState(false);
   const [modern, setModern] = useState(initialModern);
+  const [view, setView] = useState<GlobeView>(initialView);
+  const [genres, setGenres] = useState<string[]>(initialGenres);
+  const [civ, setCiv] = useState<string | null>(initialCiv);
+
+  // Facets FILTER the people set (stars AND panel); the lens only DIMS.
+  const filtered = useMemo(
+    () =>
+      filterPeople(people, {
+        genres,
+        periodIds: civ ? [civ] : undefined,
+      }),
+    [people, genres, civ],
+  );
+
+  // Only offer genre chips that exist in the loaded dataset.
+  const availableGenres = useMemo(() => {
+    const present = new Set(people.flatMap((p) => p.roles));
+    return genreOrder.filter((g) => present.has(g));
+  }, [people, genreOrder]);
+
+  // Civilization options double-use the globe's own period list — same rows
+  // getAllPeriods would return, already loaded, ordered here by start year.
+  const civOptions = useMemo(
+    () => [...periods].sort((a, b) => a.start_year - b.start_year),
+    [periods],
+  );
 
   // Interaction state lives in refs; paints happen outside React renders.
   const st = useRef({
@@ -103,12 +163,16 @@ export default function GlobeClient({
     size: 640,
     year: 751,
     modern: initialModern,
+    view: initialView,
+    people: [] as GlobePerson[],
     palette: null as GlobePalette | null,
     heartlands: [] as DrawResult["heartlands"],
+    stars: [] as DrawResult["stars"],
     dragging: false,
     lastX: 0,
     lastY: 0,
   });
+  st.current.people = filtered;
 
   // Keep the ref in sync with scrubber state, repaint on change.
   useEffect(() => {
@@ -121,15 +185,59 @@ export default function GlobeClient({
     paint();
   }, [modern]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Toggle the overlay and mirror it into the URL (shareable, composes with
+  useEffect(() => {
+    st.current.view = view;
+    paint();
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    paint();
+  }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Mirror view/facet/overlay state into the URL (shareable, composes with
    *  ?lens=) without a navigation — the repaint already happened from state. */
-  function toggleModern(next: boolean) {
-    setModern(next);
+  function syncUrl(next: {
+    modern?: boolean;
+    view?: GlobeView;
+    genres?: string[];
+    civ?: string | null;
+  }) {
     const params = new URLSearchParams(window.location.search);
-    if (next) params.set("modern", "1");
-    else params.delete("modern");
+    const set = (key: string, value: string | null) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    };
+    set("modern", (next.modern ?? modern) ? "1" : null);
+    const v = next.view ?? view;
+    set("view", v === "periods" ? null : v);
+    const g = next.genres ?? genres;
+    set("genre", g.length ? g.join(",") : null);
+    set("civ", next.civ !== undefined ? next.civ : civ);
     const q = params.toString();
     router.replace(q ? `/world?${q}` : "/world", { scroll: false });
+  }
+
+  function toggleModern(next: boolean) {
+    setModern(next);
+    syncUrl({ modern: next });
+  }
+
+  function switchView(next: GlobeView) {
+    setView(next);
+    syncUrl({ view: next });
+  }
+
+  function toggleGenre(genre: string) {
+    const next = genres.includes(genre)
+      ? genres.filter((g) => g !== genre)
+      : [...genres, genre];
+    setGenres(next);
+    syncUrl({ genres: next });
+  }
+
+  function switchCiv(next: string | null) {
+    setCiv(next);
+    syncUrl({ civ: next });
   }
 
   function paint() {
@@ -154,14 +262,18 @@ export default function GlobeClient({
         year: s.year,
         periods,
         events,
+        view: s.view,
+        people: s.people,
         land,
         lensPeriodIds: lensP,
         lensEventIds: lensE,
+        lensPersonIds: lensPer,
         modern: { enabled: s.modern, borders: countryBorders, labels: countryLabels },
       },
       s.palette,
     );
     s.heartlands = res.heartlands;
+    s.stars = res.stars;
   }
 
   useEffect(() => {
@@ -178,6 +290,12 @@ export default function GlobeClient({
     ro.observe(wrap);
     s.size = Math.min(wrap.clientWidth, 760);
 
+    // Stars sit on top of heartlands in the paint order, so hit-test them first.
+    const hitAt = (mx: number, my: number) =>
+      s.stars.find((h) => Math.hypot(h.x - mx, h.y - my) < 10) ??
+      s.heartlands.find((h) => Math.hypot(h.x - mx, h.y - my) < 10);
+    const isStar = (id: string) => s.stars.some((h) => h.id === id);
+
     // --- drag to rotate --------------------------------------------------
     function down(ev: PointerEvent) {
       s.dragging = true;
@@ -187,11 +305,9 @@ export default function GlobeClient({
     }
     function move(ev: PointerEvent) {
       if (!s.dragging) {
-        // hover: heartland hit for cursor affordance
+        // hover: heartland/star hit for cursor affordance
         const rect = canvas!.getBoundingClientRect();
-        const mx = ev.clientX - rect.left;
-        const my = ev.clientY - rect.top;
-        const hit = s.heartlands.some((h) => Math.hypot(h.x - mx, h.y - my) < 10);
+        const hit = hitAt(ev.clientX - rect.left, ev.clientY - rect.top);
         canvas!.style.cursor = hit ? "pointer" : "grab";
         return;
       }
@@ -214,10 +330,8 @@ export default function GlobeClient({
     }
     function click(ev: MouseEvent) {
       const rect = canvas!.getBoundingClientRect();
-      const mx = ev.clientX - rect.left;
-      const my = ev.clientY - rect.top;
-      const hit = s.heartlands.find((h) => Math.hypot(h.x - mx, h.y - my) < 10);
-      if (hit) router.push(`/periods/${hit.id}`);
+      const hit = hitAt(ev.clientX - rect.left, ev.clientY - rect.top);
+      if (hit) router.push(isStar(hit.id) ? `/people/${hit.id}` : `/periods/${hit.id}`);
     }
 
     canvas.addEventListener("pointerdown", down);
@@ -235,7 +349,7 @@ export default function GlobeClient({
       canvas.removeEventListener("wheel", wheel);
       canvas.removeEventListener("click", click);
     };
-  }, [periods, events, router, lensP, lensE]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periods, events, router, lensP, lensE, lensPer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- play mode ---------------------------------------------------------
   useEffect(() => {
@@ -268,15 +382,66 @@ export default function GlobeClient({
     () => visibleEvents(events, displayYear).sort((a, b) => b.intensity - a.intensity),
     [events, displayYear],
   );
+  const shining = useMemo(
+    () =>
+      filtered
+        .filter((p) => personAliveAt(p, displayYear))
+        .sort((a, b) => a.importance - b.importance || a.birth_year - b.birth_year),
+    [filtered, displayYear],
+  );
+
+  const showPeople = view !== "periods";
+  const pill = (selected: boolean) =>
+    `px-3 py-1 text-sm border ${
+      selected
+        ? "bg-(--color-ink) text-(--color-vellum) border-(--color-ink)"
+        : "border-(--color-rule) hover:border-(--color-ink)"
+    }`;
 
   return (
     <div className="grid lg:grid-cols-[1fr_300px] gap-8 items-start">
       <div ref={wrapRef}>
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="eyebrow mr-1">view</span>
+          {(Object.keys(VIEW_LABEL) as GlobeView[]).map((v) => (
+            <button key={v} className={pill(view === v)} onClick={() => switchView(v)}>
+              {VIEW_LABEL[v]}
+            </button>
+          ))}
+        </div>
+        {showPeople && (
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="eyebrow mr-1">genre</span>
+            {availableGenres.map((g) => (
+              <button key={g} className={pill(genres.includes(g))} onClick={() => toggleGenre(g)}>
+                {g}
+              </button>
+            ))}
+            <select
+              value={civ ?? ""}
+              onChange={(e) => switchCiv(e.target.value || null)}
+              className="border border-(--color-rule) bg-(--color-vellum) px-2 py-1 text-sm"
+              aria-label="Civilization"
+            >
+              <option value="">All civilizations</option>
+              {civOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-(--color-ink-soft)">
+              {filtered.length} of {people.length} people
+            </span>
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           style={{ width: "100%", maxWidth: 760, aspectRatio: "1", touchAction: "none" }}
           role="img"
-          aria-label={`Globe showing civilizations active in ${formatYear(displayYear)}. The same information is listed as text beside the globe.`}
+          aria-label={`Globe showing ${
+            showPeople ? "people and civilizations" : "civilizations"
+          } active in ${formatYear(displayYear)}. The same information is listed as text beside the globe.`}
         />
         <div className="flex items-center gap-4 mt-4 max-w-[760px]">
           <button
@@ -311,11 +476,45 @@ export default function GlobeClient({
           </label>
         </div>
         <p className="eyebrow mt-3">
-          drag to spin · scroll to zoom · click a heartland to open it
+          drag to spin · scroll to zoom · click a heartland or star to open it
         </p>
       </div>
 
       <aside className="border-l-2 border-(--color-rule) pl-5 space-y-6">
+        {showPeople && (
+          <div>
+            <p className="eyebrow mb-2">Shining in {formatYear(displayYear)}</p>
+            {shining.length === 0 ? (
+              <p className="text-sm text-(--color-ink-soft)">
+                No one matching in this year.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {shining.map((p) => {
+                  const ghosted = lensPer && !lensPer.has(p.id);
+                  return (
+                    <li
+                      key={p.id}
+                      className={`flex items-baseline gap-2.5 text-sm ${ghosted ? "opacity-40" : ""}`}
+                    >
+                      <RegionTick region={p.region as Region} />
+                      <span>
+                        <Link href={`/people/${p.id}`} className="hover:underline">
+                          {p.name}
+                        </Link>
+                        {p.place && (
+                          <span className="block text-xs text-(--color-ink-soft)">
+                            {p.place}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
         <div>
           <p className="eyebrow mb-2">Alive in {formatYear(displayYear)}</p>
           {active.length === 0 ? (

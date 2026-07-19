@@ -73,6 +73,9 @@ export const abbasid: SpineModule = {
       influence:
         "Fifth Abbasid caliph whose reign marks the apex of the Islamic Golden Age; patron of the arts and the court immortalized in One Thousand and One Nights.",
       wikidataQid: "Q124074",
+      lat: 33.31,
+      lng: 44.36,
+      place: "Baghdad",
       periods: [{ periodId: "abbasid-caliphate", role: "ruler" }],
     },
     {
@@ -84,6 +87,9 @@ export const abbasid: SpineModule = {
       influence:
         "Caliph who institutionalized the translation movement, expanding the House of Wisdom into the era's greatest center of learning.",
       wikidataQid: "Q243610",
+      lat: 33.31,
+      lng: 44.36,
+      place: "Baghdad",
       periods: [{ periodId: "abbasid-caliphate", role: "ruler" }],
     },
     {
@@ -97,7 +103,40 @@ export const abbasid: SpineModule = {
       influence:
         "Mathematician at the House of Wisdom whose treatise on al-jabr founded algebra as a discipline; the word 'algorithm' derives from his name.",
       wikidataQid: "Q9038",
+      lat: 33.31,
+      lng: 44.36,
+      place: "Baghdad",
       periods: [{ periodId: "abbasid-caliphate", role: "scholar" }],
+    },
+    {
+      id: "al-razi",
+      name: "Abu Bakr al-Razi",
+      birthYear: 865,
+      birthCertainty: "circa",
+      deathYear: 925,
+      importance: 2,
+      influence:
+        "Physician-philosopher whose clinical writings — including the first clear account distinguishing smallpox from measles — taught Europe medicine for centuries.",
+      lat: 35.59,
+      lng: 51.43,
+      place: "Rayy",
+      periods: [{ periodId: "abbasid-caliphate", role: "scholar" }],
+    },
+    {
+      id: "al-ghazali",
+      name: "Al-Ghazali",
+      birthYear: 1058,
+      deathYear: 1111,
+      importance: 2,
+      influence:
+        "Taught at Baghdad's Nizamiyya; reshaped Islamic theology's relationship with philosophy and Sufism.",
+      lat: 33.31,
+      lng: 44.36,
+      place: "Baghdad",
+      periods: [
+        { periodId: "abbasid-caliphate", role: "philosopher" },
+        { periodId: "abbasid-caliphate", role: "scholar" },
+      ],
     },
     {
       id: "genghis-khan",
@@ -109,7 +148,38 @@ export const abbasid: SpineModule = {
       influence:
         "United the Mongol tribes and launched the conquests that created the largest contiguous empire in history, redrawing Eurasia's political map.",
       wikidataQid: "Q720",
+      lat: 47.2,
+      lng: 102.8,
+      place: "Karakorum",
       periods: [{ periodId: "mongol-empire", role: "founder" }],
+    },
+    {
+      id: "kublai-khan",
+      name: "Kublai Khan",
+      birthYear: 1215,
+      deathYear: 1294,
+      importance: 2,
+      influence:
+        "Genghis's grandson who completed the conquest of China and founded the Yuan, ruling the Mongol world from Khanbaliq.",
+      wikidataQid: "Q7523", // best-effort — enrich tripwire verifies
+      lat: 39.9,
+      lng: 116.4,
+      place: "Khanbaliq (Beijing)",
+      periods: [{ periodId: "mongol-empire", role: "ruler" }],
+    },
+    {
+      id: "marco-polo",
+      name: "Marco Polo",
+      birthYear: 1254,
+      deathYear: 1324,
+      importance: 2,
+      influence:
+        "Venetian merchant whose quarter-century journey to Kublai Khan's court gave Europe its most influential account of Asia.",
+      wikidataQid: "Q6101", // best-effort — enrich tripwire verifies
+      lat: 39.9,
+      lng: 116.4,
+      place: "Khanbaliq (Beijing)",
+      periods: [{ periodId: "mongol-empire", role: "explorer" }],
     },
   ],
 
@@ -159,12 +229,17 @@ export const abbasid: SpineModule = {
   themeMemberships: {
     "islamic-history": {
       periods: ["umayyad-caliphate", "abbasid-caliphate"],
-      people: ["harun-al-rashid", "al-mamun", "al-khwarizmi"],
+      people: ["harun-al-rashid", "al-mamun", "al-khwarizmi", "al-razi", "al-ghazali"],
       events: [
         "abbasid-revolution",
         "founding-of-baghdad",
         "siege-of-baghdad-1258",
       ],
+    },
+    "silk-road": {
+      // Marco Polo is the road's emblem — the journey event was already a
+      // member; the traveler himself joins with the people-on-globe wave.
+      people: ["marco-polo"],
     },
   },
 };

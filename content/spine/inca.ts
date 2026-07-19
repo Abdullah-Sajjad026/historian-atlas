@@ -36,6 +36,23 @@ export const inca: SpineModule = {
       influence:
         "The ruler who turned the Cusco polity into an empire — reorganizer of state, calendar, and capital, and traditionally the builder of Machu Picchu.",
       wikidataQid: "Q274441",
+      lat: -13.53,
+      lng: -71.97,
+      place: "Cusco",
+      periods: [{ periodId: "inca-empire", role: "ruler" }],
+    },
+    {
+      id: "atahualpa",
+      name: "Atahualpa",
+      birthYear: 1502,
+      birthCertainty: "circa",
+      deathYear: 1533,
+      importance: 2,
+      influence:
+        "The last sovereign Inca emperor, seized at Cajamarca.",
+      lat: -13.53,
+      lng: -71.97,
+      place: "Cusco",
       periods: [{ periodId: "inca-empire", role: "ruler" }],
     },
   ],

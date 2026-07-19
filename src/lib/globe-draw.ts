@@ -19,11 +19,14 @@ import {
 import {
   mappablePeriods,
   visibleEvents,
+  starPeople,
+  personFade,
   kmToDegrees,
   lifeFade,
   lensAlpha,
   type GlobePeriod,
   type GlobeEvent,
+  type GlobePerson,
 } from "./globe";
 import type { CountryLabel } from "./modern-borders";
 
@@ -37,6 +40,10 @@ export interface GlobePalette {
   pigment: (region: string) => string;
 }
 
+/** periods = influence circles only (the original globe); people = stars
+ *  only; both = circles under stars. Events flare in every mode. */
+export type GlobeView = "periods" | "people" | "both";
+
 export interface GlobeFrame {
   width: number;
   height: number;
@@ -45,11 +52,19 @@ export interface GlobeFrame {
   year: number;
   periods: GlobePeriod[];
   events: GlobeEvent[];
+  /** Defaults to "periods" so existing callers are untouched. */
+  view?: GlobeView;
+  /** People to render as stars in people/both views. Callers pass the
+   *  FACET-FILTERED set — facets narrow this list upstream (filterPeople),
+   *  while the lens only dims via lensPersonIds. Panel-only people
+   *  (lat/lng null) are skipped by starPeople. */
+  people?: GlobePerson[];
   land: GeoPermissibleObjects; // GeoJSON land geometry
   /** Active lens: members render full-strength, everything else ghosts.
    *  Separate sets because period and event ids share no namespace guarantee. */
   lensPeriodIds?: Set<string>;
   lensEventIds?: Set<string>;
+  lensPersonIds?: Set<string>;
   /** Modern-borders overlay — a constant chart annotation. Deliberately
    *  outside the lens/lifeFade systems: it is the same in every year and
    *  never ghosts (it is the reference grid the lens is read against). */
@@ -77,6 +92,8 @@ export function withAlpha(hex: string, alpha: number): string {
 export interface DrawResult {
   /** Screen positions of drawn heartlands, for hit-testing/labels upstream. */
   heartlands: Array<{ id: string; name: string; x: number; y: number; region: string }>;
+  /** Screen positions of drawn person stars, same contract as heartlands. */
+  stars: Array<{ id: string; name: string; x: number; y: number; region: string }>;
 }
 
 // Structural type so both DOM and node-canvas contexts satisfy it.
@@ -162,11 +179,15 @@ export function drawGlobe(ctx: Ctx, f: GlobeFrame, P: GlobePalette): DrawResult 
     ctx.restore(); // restores the empty dash list
   }
 
+  const view = f.view ?? "periods";
+  const showPeriods = view !== "people";
+  const showPeople = view !== "periods";
+
   // Spheres of influence — big first (painter's order from mappablePeriods).
   const circle = geoCircle();
   const heartlands: DrawResult["heartlands"] = [];
   const deferred: Array<{ name: string; x: number; y: number; pig: string; ghosted: boolean }> = [];
-  for (const p of mappablePeriods(f.periods, f.year)) {
+  for (const p of showPeriods ? mappablePeriods(f.periods, f.year) : []) {
     const pig = P.pigment(p.region);
     // Two independent dimensions: life fade (birth/death) drives BOTH radius
     // and alpha; the lens drives alpha ONLY — a ghosted empire keeps its true
@@ -267,5 +288,65 @@ export function drawGlobe(ctx: Ctx, f: GlobeFrame, P: GlobePalette): DrawResult 
     ctx.fill();
   }
 
-  return { heartlands };
+  // People as stars — the humans alive in T, pigment by lane region, last in
+  // the paint order so they read as the subject in people/both views. The
+  // lens dims them (alpha only, like everything else); facets never reach
+  // this function — a filtered-out person simply isn't in f.people.
+  const stars: DrawResult["stars"] = [];
+  if (showPeople && f.people) {
+    for (const person of starPeople(f.people, f.year)) {
+      if (!onFront(person.lng, person.lat)) continue;
+      const pt = projection([person.lng, person.lat]);
+      if (!pt) continue;
+      const [x, y] = pt;
+      const pig = P.pigment(person.region);
+      // Same two dimensions as the influence circles: lifecycle fade (people
+      // kindle and dim — personFade IS lifeFade over the lifespan) multiplied
+      // with the lens dim. Fade drives alpha only; a young star keeps its
+      // full importance-derived size.
+      const fade = personFade(person, f.year);
+      const ghosted = lensAlpha(person.id, f.lensPersonIds) < 1;
+      const r =
+        person.importance === 1 ? 8 : person.importance === 2 ? 6.5 : 5;
+
+      ctx.globalAlpha = fade * (ghosted ? 0.35 : 1);
+      // Four-point star: outer points N/E/S/W, waist between.
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const angle = -Math.PI / 2 + (i * Math.PI) / 4;
+        const rad = i % 2 === 0 ? r : r * 0.42;
+        const px = x + rad * Math.cos(angle);
+        const py = y + rad * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = pig;
+      ctx.fill();
+      ctx.strokeStyle = "#f6f0e2";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      // Bright core — the "shine".
+      ctx.fillStyle = "#f6f0e2";
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Names only in the dedicated People view (in "both", the serif
+      // heartland labels already own the type layer) and only for
+      // importance <= 2 — the Shining panel names everyone.
+      if (view === "people" && person.importance <= 2) {
+        ctx.font = "600 12px 'Iowan Old Style', 'Palatino Linotype', Georgia, serif";
+        ctx.fillStyle = P.ink;
+        ctx.strokeStyle = withAlpha("#f6f0e2", 0.85);
+        ctx.lineWidth = 3;
+        ctx.strokeText(person.name, x + r + 4, y - 6);
+        ctx.fillText(person.name, x + r + 4, y - 6);
+      }
+      ctx.globalAlpha = 1;
+      stars.push({ id: person.id, name: person.name, x, y, region: person.region });
+    }
+  }
+
+  return { heartlands, stars };
 }

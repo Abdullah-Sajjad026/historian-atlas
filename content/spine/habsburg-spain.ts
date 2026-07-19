@@ -35,7 +35,23 @@ export const habsburgSpain: SpineModule = {
       influence:
         "Ruled the empire at its height from the Escorial — a bureaucrat-king governing four continents by paper, whose reign fixed Spain's golden age and began its overextension.",
       wikidataQid: "Q83229",
+      lat: 40.59,
+      lng: -4.15,
+      place: "El Escorial",
       periods: [{ periodId: "habsburg-spain", role: "ruler" }],
+    },
+    {
+      id: "cervantes",
+      name: "Miguel de Cervantes",
+      birthYear: 1547,
+      deathYear: 1616,
+      importance: 2,
+      influence: "Don Quixote — the first modern novel.",
+      wikidataQid: "Q5682", // best-effort — enrich tripwire verifies
+      lat: 40.42,
+      lng: -3.7,
+      place: "Madrid",
+      periods: [{ periodId: "habsburg-spain", role: "artist" }],
     },
   ],
   events: [],

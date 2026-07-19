@@ -43,6 +43,9 @@ export const maurya: SpineModule = {
       importance: 2,
       influence:
         "Founder of the Maurya Empire, who overthrew the Nanda dynasty and pushed back Alexander's successors to unify northern India for the first time.",
+      lat: 25.61,
+      lng: 85.14,
+      place: "Pataliputra",
       periods: [{ periodId: "maurya-empire", role: "founder" }],
     },
     {
@@ -55,6 +58,9 @@ export const maurya: SpineModule = {
       influence:
         "Mauryan emperor who conquered Kalinga, renounced conquest in remorse, and spread Buddhism across Asia through edicts and missions — turning a regional faith into a world religion.",
       wikidataQid: "Q8589", // best-effort; unverified until an enrich run
+      lat: 25.61,
+      lng: 85.14,
+      place: "Pataliputra",
       periods: [{ periodId: "maurya-empire", role: "ruler" }],
     },
   ],

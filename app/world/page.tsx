@@ -1,6 +1,8 @@
 import { client } from "@/db/client";
-import type { GlobePeriod, GlobeEvent } from "@/lib/globe";
-import { getAllThemes, getThemeEntityIds } from "@/db/queries";
+import type { GlobePeriod, GlobeEvent, GlobePerson } from "@/lib/globe";
+import type { GlobeView } from "@/lib/globe-draw";
+import { personRole } from "@/db/schema";
+import { getAllThemes, getThemeEntityIds, getGlobePeople } from "@/db/queries";
 import { LensPicker } from "../lens-picker";
 import GlobeClient from "./globe-client";
 
@@ -11,20 +13,35 @@ export const metadata = { title: "The world — historian" };
 export default async function WorldPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lens?: string; modern?: string }>;
+  searchParams: Promise<{
+    lens?: string;
+    modern?: string;
+    view?: string;
+    genre?: string;
+    civ?: string;
+  }>;
 }) {
-  const { lens, modern } = await searchParams;
+  const { lens, modern, view, genre, civ } = await searchParams;
   const periods = await client<GlobePeriod[]>`
     SELECT id, name, region, start_year, end_year, center_lat, center_lng,
            influence_km, importance FROM periods`;
   const events = await client<GlobeEvent[]>`
     SELECT id, name, start_year, region, lat, lng, importance FROM events`;
+  const people = (await getGlobePeople()) as GlobePerson[];
 
   const [themes, lensIds] = await Promise.all([
     getAllThemes(),
     lens ? getThemeEntityIds(lens) : Promise.resolve(null),
   ]);
   const activeLens = lensIds ? lens! : null;
+
+  // URL params degrade like ?lens= does: unknown values fall back silently.
+  const initialView: GlobeView =
+    view === "people" || view === "both" ? view : "periods";
+  const initialGenres = (genre ?? "")
+    .split(",")
+    .filter((g) => (personRole.enumValues as readonly string[]).includes(g));
+  const initialCiv = periods.some((p) => p.id === civ) ? civ! : null;
 
   const minYear = Math.min(...periods.map((p) => p.start_year)) - 20;
   const maxYear =
@@ -38,18 +55,25 @@ export default async function WorldPage({
         <p className="mt-3 max-w-2xl text-(--color-ink-soft)">
           Each pigment sphere is a civilization&rsquo;s reach around its
           heartland — deliberately spheres of influence, not precise borders.
-          Press play and events flare where they happened.
+          Switch to People and the humans of each age shine as stars. Press
+          play and events flare where they happened.
         </p>
       </header>
       <LensPicker basePath="/world" themes={themes} active={activeLens} />
       <GlobeClient
         periods={periods}
         events={events}
+        people={people}
         minYear={minYear}
         maxYear={maxYear}
         lensPeriodIds={lensIds?.periodIds ?? null}
         lensEventIds={lensIds?.eventIds ?? null}
+        lensPersonIds={lensIds?.personIds ?? null}
         initialModern={modern === "1"}
+        initialView={initialView}
+        initialGenres={initialGenres}
+        initialCiv={initialCiv}
+        genreOrder={personRole.enumValues}
       />
     </div>
   );

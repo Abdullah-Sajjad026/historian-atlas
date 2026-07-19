@@ -37,6 +37,9 @@ export const mughal: SpineModule = {
       influence:
         "Expanded Mughal rule across most of the subcontinent and bound it together with a policy of religious pluralism — abolishing the jizya, marrying Rajput houses into the dynasty, and floating his own syncretic Din-i Ilahi.",
       wikidataQid: "Q8597", // best-effort; unverified until an enrich run
+      lat: 27.18,
+      lng: 78.02,
+      place: "Agra",
       periods: [{ periodId: "mughal-empire", role: "ruler" }],
     },
     {
@@ -47,6 +50,9 @@ export const mughal: SpineModule = {
       importance: 2,
       influence:
         "Pushed the empire to its greatest territorial extent; his decades of Deccan warfare and stricter religious policy left it overstretched at his death.",
+      lat: 28.65,
+      lng: 77.23,
+      place: "Delhi",
       periods: [{ periodId: "mughal-empire", role: "ruler" }],
     },
   ],

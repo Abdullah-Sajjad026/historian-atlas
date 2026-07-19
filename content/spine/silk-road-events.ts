@@ -9,9 +9,10 @@ import type { SpineModule } from "./types";
 export const silkRoadEvents: SpineModule = {
   periods: [],
 
-  // People deliberately empty for v1: the lens only includes people genuinely
-  // tied to the road itself, and none of the seeded scholars/rulers qualify
-  // (Shen Kuo wrote about much, but he is a Song court figure, not a road one).
+  // The lens only includes people genuinely tied to the road itself. Its
+  // people arrived with the people-on-globe wave and are declared in their
+  // home modules: Xuanzang (tang.ts), Marco Polo (abbasid.ts), Ibn Battuta
+  // (delhi-sultanate.ts). Court figures (Shen Kuo et al.) still don't qualify.
   people: [],
 
   events: [

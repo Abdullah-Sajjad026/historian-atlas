@@ -18,8 +18,10 @@ circles, lens ghosting) is a projection of this graph.
   heartland columns `center_lat`/`center_lng`/`influence_km` (globe),
   `wikidata_qid`, `enrichment` JSONB + `enriched_at`.
 - **people**: birth/death + certainties, `influence` (one-liner: why they
-  matter), same enrichment columns. Region is NOT stored — the timeline
-  borrows it from the earliest period membership (see `getTimelinePeople`).
+  matter), `lat`/`lng`/`place` (place of principal activity — the globe's
+  People-view star; nullable), same enrichment columns. Region is NOT
+  stored — the timeline and globe borrow it from the earliest period
+  membership (see `getTimelinePeople` / `getGlobePeople`).
 - **events**: point or range, `lat`/`lng` (globe pulse), linked to 0..n
   periods via `event_periods` (0 is legal — see the Hijra).
 - **themes** + `theme_memberships` (polymorphic: entity_type + entity_id;
@@ -48,9 +50,15 @@ cycle). `EXPLAIN` confirms `Index Scan using periods_slice_idx` for
   renders an empty rail. Rule: **point queries for people (short lifespans),
   overlap queries for periods.** Concurrent events exclude ones already
   linked to the period (NOT EXISTS on event_periods).
-- `getThemeEntityIds(id)` — the lens subgraph (period + event id lists).
+- `getThemeEntityIds(id)` — the lens subgraph (period + event + person id
+  lists).
 - `getTimelinePeople()` — `DISTINCT ON (person)` joined through
   period_people to borrow the earliest membership's region.
+- `getGlobePeople()` — one row per person with memberships AGGREGATED
+  (`array_agg(DISTINCT role)`, `array_agg(DISTINCT period_id)`) for the
+  People-view facets, region still borrowed from the earliest period.
+  The `::text` cast on the role agg matters: postgres.js parses `text[]`
+  natively but not arrays of custom enums.
 - `getSearchIndex()` — flat name index for the header search.
 
 ## Rendering: three canvases, zero forked draw code
@@ -114,7 +122,15 @@ Georgia, which measures close enough for label decisions).
   to a final pass so they top both the fills and the modern labels
   (front-hemisphere test via a tiny geoCircle's projected area, because
   projection() returns coords even for back-hemisphere points — shared
-  `onFront` helper) → event pulse rings (radius grows as intensity fades).
+  `onFront` helper) → event pulse rings (radius grows as intensity fades)
+  → person stars last (`GlobeFrame.view` = periods | people | both:
+  periods-only skips stars, people-only skips circles+heartlands; stars are
+  four-point pigment shapes with a bright core via `starPeople` — alive-set
+  fan-out + importance-descending painter's order — alpha = `personFade`
+  (the lifeFade ramp mapped over the lifespan; people kindle and dim) ×
+  the lens dim through `lensPersonIds`, facet-filtered UPSTREAM by
+  `filterPeople`; DrawResult returns `stars` beside `heartlands` for
+  hit-testing).
 - `GlobeFrame.modern?: ModernOverlay` = `{ enabled, borders, labels }`:
   border geometry is a topojson interior-borders mesh, labels come from
   `selectCountryLabels`, both computed once at module scope by the two

@@ -260,7 +260,7 @@ export async function getAllEvents(): Promise<EventRow[]> {
 /** Entity ids belonging to a theme — the lens subgraph, one query. */
 export async function getThemeEntityIds(
   themeId: string,
-): Promise<{ periodIds: string[]; eventIds: string[] } | null> {
+): Promise<{ periodIds: string[]; eventIds: string[]; personIds: string[] } | null> {
   const themeExists = await client`SELECT 1 FROM themes WHERE id = ${themeId}`;
   if (themeExists.length === 0) return null;
   const rows = await client<Array<{ entity_type: string; entity_id: string }>>`
@@ -268,6 +268,7 @@ export async function getThemeEntityIds(
   return {
     periodIds: rows.filter((r) => r.entity_type === "period").map((r) => r.entity_id),
     eventIds: rows.filter((r) => r.entity_type === "event").map((r) => r.entity_id),
+    personIds: rows.filter((r) => r.entity_type === "person").map((r) => r.entity_id),
   };
 }
 
@@ -290,6 +291,46 @@ export async function getTimelinePeople() {
     JOIN periods per ON per.id = pp.period_id
     WHERE p.birth_year IS NOT NULL
     ORDER BY p.id, per.start_year ASC`;
+}
+
+/**
+ * People for the globe's People view. One row per person with their
+ * memberships AGGREGATED: `roles` and `period_ids` are the distinct sets the
+ * genre/civilization facets match against, while `region` stays the earliest
+ * period's (the same borrowing rule as getTimelinePeople). People without a
+ * place still appear — they render in the side panel but never as a star.
+ * People with no period membership are excluded by the join: they have no
+ * lane region and no civilization to facet on (a documented honest gap).
+ */
+export async function getGlobePeople() {
+  return client<
+    Array<{
+      id: string;
+      name: string;
+      birth_year: number;
+      death_year: number | null;
+      importance: number;
+      lat: number | null;
+      lng: number | null;
+      place: string | null;
+      region: Region;
+      roles: string[];
+      period_ids: string[];
+    }>
+  >`
+    SELECT p.id, p.name, p.birth_year, p.death_year, p.importance,
+           p.lat, p.lng, p.place,
+           (SELECT per.region FROM periods per
+              JOIN period_people pp2 ON pp2.period_id = per.id
+              WHERE pp2.person_id = p.id
+              ORDER BY per.start_year ASC LIMIT 1) AS region,
+           array_agg(DISTINCT pp.role::text) AS roles,
+           array_agg(DISTINCT pp.period_id) AS period_ids
+    FROM people p
+    JOIN period_people pp ON pp.person_id = p.id
+    WHERE p.birth_year IS NOT NULL
+    GROUP BY p.id
+    ORDER BY p.importance ASC, p.birth_year ASC`;
 }
 
 /** Flat entity index for the header search box. */

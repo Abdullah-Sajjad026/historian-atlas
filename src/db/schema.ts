@@ -127,6 +127,12 @@ export const people = pgTable(
     /** One-line "why this person matters" — the influence summary. */
     influence: text("influence"),
     summary: text("summary"),
+    /** Place of principal activity — where this person shines on the globe
+     *  (People view). One honest point (court, workshop, school), not a
+     *  birthplace and not an itinerary. Nullable: not everyone maps. */
+    lat: real("lat"),
+    lng: real("lng"),
+    place: text("place"),
     wikidataQid: text("wikidata_qid"),
     enrichment: jsonb("enrichment"),
     enrichedAt: timestamp("enriched_at", { withTimezone: true }),

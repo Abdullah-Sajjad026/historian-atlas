@@ -90,6 +90,9 @@ export const worldModules: SpineModule = {
       influence:
         "Byzantine emperor whose codification of Roman law (the Corpus Juris Civilis) underlies most European legal systems, and whose Hagia Sophia redefined architecture.",
       wikidataQid: "Q41866",
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
       periods: [{ periodId: "byzantine-empire", role: "ruler" }],
     },
     {
@@ -101,7 +104,81 @@ export const worldModules: SpineModule = {
       influence:
         "Gupta-era mathematician-astronomer: place-value arithmetic, a remarkably accurate pi, and a rotating-Earth model — his work reached Baghdad in translation and shaped Islamic astronomy.",
       wikidataQid: "Q11359",
+      lat: 25.61,
+      lng: 85.14,
+      place: "Pataliputra",
       periods: [{ periodId: "gupta-empire", role: "scholar" }],
+    },
+    // Three Byzantines share Constantinople exactly — the globe's fan-out of
+    // coincident star coordinates earns its keep here.
+    {
+      id: "theodora",
+      name: "Empress Theodora",
+      birthYear: 500,
+      birthCertainty: "circa",
+      deathYear: 548,
+      importance: 2,
+      influence:
+        "Co-ruled with Justinian; the steel of the Nika riots, and an expander of women's legal rights.",
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
+      periods: [{ periodId: "byzantine-empire", role: "ruler" }],
+    },
+    {
+      id: "basil-ii",
+      name: "Basil II",
+      birthYear: 958,
+      deathYear: 1025,
+      importance: 3,
+      influence: "Brought the empire to its medieval apex.",
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
+      periods: [{ periodId: "byzantine-empire", role: "ruler" }],
+    },
+    {
+      id: "anna-komnene",
+      name: "Anna Komnene",
+      birthYear: 1083,
+      deathYear: 1153,
+      importance: 2,
+      influence:
+        "The Alexiad — history's first major work of secular scholarship by a woman.",
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
+      periods: [{ periodId: "byzantine-empire", role: "scholar" }],
+    },
+    {
+      id: "kalidasa",
+      name: "Kalidasa",
+      // His dates are genuinely uncertain — even the century is argued from
+      // internal evidence. Modeled honestly: disputed, not papered over.
+      birthYear: 350,
+      birthCertainty: "disputed",
+      deathYear: 430,
+      deathCertainty: "disputed",
+      importance: 2,
+      influence: "Sanskrit's greatest poet-dramatist.",
+      lat: 25.61,
+      lng: 85.14,
+      place: "Pataliputra",
+      periods: [{ periodId: "gupta-empire", role: "artist" }],
+    },
+    {
+      id: "jasaw-chan-kawiil",
+      name: "Jasaw Chan K'awiil I",
+      birthYear: 660,
+      birthCertainty: "circa",
+      deathYear: 734,
+      importance: 3,
+      influence:
+        "Restored Tikal's power; the victor over Calakmul.", // see tikal-calakmul-war
+      lat: 17.22,
+      lng: -89.62,
+      place: "Tikal",
+      periods: [{ periodId: "classic-maya", role: "ruler" }],
     },
   ],
 
@@ -153,7 +230,7 @@ export const worldModules: SpineModule = {
     },
     subcontinent: {
       periods: ["gupta-empire"],
-      people: ["aryabhata"],
+      people: ["aryabhata", "kalidasa"],
     },
   },
 };

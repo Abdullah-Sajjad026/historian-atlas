@@ -34,7 +34,24 @@ export const carolingian: SpineModule = {
       influence:
         "King of the Franks and, from 800, emperor — the 'father of Europe' whose reign fused Roman, Christian, and Germanic inheritance into a new Western order.",
       wikidataQid: "Q3044",
+      lat: 50.78,
+      lng: 6.08,
+      place: "Aachen",
       periods: [{ periodId: "carolingian-empire", role: "ruler" }],
+    },
+    {
+      id: "alcuin",
+      name: "Alcuin of York",
+      birthYear: 735,
+      birthCertainty: "circa",
+      deathYear: 804,
+      importance: 3,
+      influence:
+        "Architect of the Carolingian renaissance and its script reform.",
+      lat: 50.78,
+      lng: 6.08,
+      place: "Aachen",
+      periods: [{ periodId: "carolingian-empire", role: "scholar" }],
     },
   ],
   events: [

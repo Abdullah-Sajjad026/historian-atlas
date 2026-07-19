@@ -38,7 +38,28 @@ export const mali: SpineModule = {
       influence:
         "Emperor of Mali, often cited as the wealthiest individual in history; his 1324 pilgrimage to Mecca distributed so much gold it reportedly depressed prices in Cairo for years.",
       wikidataQid: "Q309372",
+      lat: 11.38,
+      lng: -8.4,
+      place: "Niani",
       periods: [{ periodId: "mali-empire", role: "ruler" }],
+    },
+    {
+      id: "sundiata-keita",
+      name: "Sundiata Keita",
+      birthYear: 1217,
+      birthCertainty: "circa",
+      deathYear: 1255,
+      deathCertainty: "circa",
+      importance: 2,
+      influence:
+        "Founder of the Mali Empire, remembered through the Epic of Sundiata.",
+      lat: 11.38,
+      lng: -8.4,
+      place: "Niani",
+      periods: [{ periodId: "mali-empire", role: "founder" }],
+      // Deliberately NOT in the islamic-history lens: whether Sundiata's Mali
+      // was yet meaningfully Islamic is a live scholarly debate (the epic
+      // blends traditions); the lens claim starts with Mansa Musa.
     },
   ],
   events: [

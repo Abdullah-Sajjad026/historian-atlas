@@ -56,6 +56,9 @@ export const islamicBookends: SpineModule = {
       influence:
         "Second Rashidun caliph; under his rule the caliphate became an empire, with the conquests of the Levant, Egypt, and Persia and the founding institutions of Islamic governance.",
       wikidataQid: "Q8467",
+      lat: 24.47,
+      lng: 39.61,
+      place: "Medina",
       periods: [{ periodId: "rashidun-caliphate", role: "ruler" }],
     },
     {
@@ -67,7 +70,66 @@ export const islamicBookends: SpineModule = {
       influence:
         "'The Conqueror' — took Constantinople in 1453 at age 21, ending the Roman imperial line and refounding the city as the Ottoman capital.",
       wikidataQid: "Q34503",
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
       periods: [{ periodId: "ottoman-empire", role: "ruler" }],
+    },
+    {
+      id: "ali-ibn-abi-talib",
+      name: "Ali ibn Abi Talib",
+      birthYear: 601,
+      birthCertainty: "circa",
+      deathYear: 661,
+      importance: 1,
+      influence:
+        "Fourth Rashidun caliph, foundational to both Sunni and Shia tradition.",
+      lat: 31.99,
+      lng: 44.33,
+      place: "Kufa",
+      periods: [{ periodId: "rashidun-caliphate", role: "ruler" }],
+    },
+    {
+      id: "khalid-ibn-al-walid",
+      name: "Khalid ibn al-Walid",
+      birthYear: 585,
+      birthCertainty: "circa",
+      deathYear: 642,
+      importance: 2,
+      influence:
+        "Undefeated commander of the early Islamic conquests.",
+      lat: 33.51,
+      lng: 36.29,
+      place: "Damascus",
+      periods: [{ periodId: "rashidun-caliphate", role: "general" }],
+    },
+    {
+      id: "suleiman-the-magnificent",
+      name: "Suleiman I",
+      birthYear: 1494,
+      deathYear: 1566,
+      importance: 1,
+      influence:
+        "'The Magnificent' to Europe, 'the Lawgiver' to his own tradition — the Ottoman Empire at its zenith.",
+      wikidataQid: "Q7987", // best-effort — enrich tripwire verifies
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
+      periods: [{ periodId: "ottoman-empire", role: "ruler" }],
+    },
+    {
+      id: "mimar-sinan",
+      name: "Mimar Sinan",
+      birthYear: 1488,
+      birthCertainty: "circa",
+      deathYear: 1588,
+      importance: 2,
+      influence:
+        "Chief Ottoman architect for half a century; the Süleymaniye and Selimiye are his.",
+      lat: 41.01,
+      lng: 28.98,
+      place: "Constantinople",
+      periods: [{ periodId: "ottoman-empire", role: "artist" }],
     },
   ],
 
@@ -90,7 +152,14 @@ export const islamicBookends: SpineModule = {
   themeMemberships: {
     "islamic-history": {
       periods: ["rashidun-caliphate", "ottoman-empire"],
-      people: ["umar-ibn-al-khattab", "mehmed-ii"],
+      people: [
+        "umar-ibn-al-khattab",
+        "mehmed-ii",
+        "ali-ibn-abi-talib",
+        "khalid-ibn-al-walid",
+        "suleiman-the-magnificent",
+        "mimar-sinan",
+      ],
       events: ["hijra"],
     },
   },

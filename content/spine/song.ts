@@ -35,7 +35,36 @@ export const song: SpineModule = {
       influence:
         "Song polymath whose Dream Pool Essays described the magnetic compass, movable type, and true north — a one-man record of his civilization's technical genius.",
       wikidataQid: "Q205921",
+      lat: 34.79,
+      lng: 114.31,
+      place: "Kaifeng",
       periods: [{ periodId: "song-dynasty", role: "scholar" }],
+    },
+    {
+      id: "su-shi",
+      name: "Su Shi",
+      birthYear: 1037,
+      deathYear: 1101,
+      importance: 2,
+      influence:
+        "Poet, painter, and statesman — the complete Song literatus.",
+      lat: 30.25,
+      lng: 120.17,
+      place: "Hangzhou", // of his many postings, the one he shaped most
+      periods: [{ periodId: "song-dynasty", role: "artist" }],
+    },
+    {
+      id: "zhu-xi",
+      name: "Zhu Xi",
+      birthYear: 1130,
+      deathYear: 1200,
+      importance: 2,
+      influence:
+        "Synthesized Neo-Confucianism; his canon became East Asia's civil-service orthodoxy for six hundred years.",
+      lat: 27.33,
+      lng: 118.03,
+      place: "Wuyishan",
+      periods: [{ periodId: "song-dynasty", role: "philosopher" }],
     },
   ],
   events: [

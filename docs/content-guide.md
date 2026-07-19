@@ -48,6 +48,23 @@ HAPPENED (Mansa Musa's hajj is `mena`).
 on people answers "why does this person matter" in one line. Long narrative
 belongs in future MDX pages, not the graph.
 
+**People roles = the genre facet.** The `role` on a period membership is
+also the People view's genre filter — the enum IS the genre system. Keep it
+stable: a new role value means a DB migration AND a new facet chip; prefer
+expressing nuance through multiple memberships (Xuanzang is
+explorer + scholar) over enum growth.
+
+**People coordinates (`lat`/`lng`/`place`).** Place of PRINCIPAL ACTIVITY —
+the court, workshop, or school where the person's work happened (Cervantes
+gets Madrid, not Alcalá; Ibn Battuta gets Delhi, his longest post, not an
+itinerary). One honest point; omit all three when no single place is honest.
+Coordless people still show in the globe's Shining panel, just not as stars.
+Also note: a person needs at least one PERIOD MEMBERSHIP to appear in the
+People view at all (region and civilization facet both come from
+memberships). Known honest gaps awaiting periods: Rumi (no Seljuk/Rum
+period yet) and anyone from the Ghana Empire (no named Ghana people
+survive the sources well enough to seed).
+
 **Heartlands (periods).** `centerLat/centerLng` = capital or center of
 gravity; `influenceKm` = honest sphere-of-influence radius, NOT maximal
 imperial extent for globe drama (Habsburg Spain is 900km Iberian heartland

@@ -302,6 +302,37 @@ renderer changes. What the sprint proved and how it was verified:
   19 events / 3 themes + smoke line), and all lens routes 200 with correct
   memberships in the served HTML.
 
+## Wave 4 notes (people on the globe + faceted filtering, 2026-07)
+
+The globe learned to show humans. People gained a place of principal
+activity (`lat`/`lng`/`place`, one additive migration), a `?view=` toggle
+(Empires | People | Both) renders them as four-point pigment stars through
+the SHARED draw module, and a genre × civilization facet row
+(`?genre=`, `?civ=`) narrows the people set — composing with `?lens=` and
+`?modern=`. ~Doubled the people spine (22 → 45; 23 new, all with coords)
+across ten modules. Highlights:
+
+- **Facets FILTER, the lens DIMS.** The load-bearing asymmetry, documented
+  in docs/features.md: a lens spotlights the world (nothing hidden), facets
+  narrow the people query (stars AND Shining panel). The two systems never
+  touch each other.
+- **Coincident stars fan out.** Theodora, Basil II, and Anna Komnene all
+  sit at 41.01, 28.98 — `fanOutCoincident` (pure, tested) spreads exact
+  stacks into a small ring, applied per-frame to the alive set only.
+- **Verified**: 67 tests green, typecheck, DB-free build; preview frames
+  pixel-audited (star arms sample exact region pigment); the spec scenarios
+  hold — scholars@1000 shows al-Zahrawi only (al-Ghazali unborn, Basil II
+  a ruler), rulers@1000 inverts, and the faceted route serves
+  "3 of 45 people" with Li Bai + Du Fu shining at 751 (Xuanzang †664
+  appears when scrubbed earlier).
+- **Patch (same day): every person is a star.** The 22 founding people got
+  their coords (zero coordless people remain), and stars gained a
+  lifecycle fade — `personFade` is `lifeFade` REUSED over the lifespan, so
+  people kindle and dim exactly the way empires breathe (69 tests). The
+  marquee frame: 800 CE, Charlemagne at Aachen and Harun al-Rashid's
+  Baghdad court (al-Khwarizmi, a 14-year-old al-Ma'mun) on one hemisphere,
+  Harun already dimming at fade 0.90, nine years from death.
+
 ## Decisions log
 
 | Decision | Choice | Why |
@@ -316,3 +347,9 @@ renderer changes. What the sprint proved and how it was verified:
 | Mughal succession | `parentId` → delhi-sultanate | Real handoff: Panipat 1526 ends one and starts the other; the battle event links both periods |
 | Silk Road lens people | Empty in v1 | Only people genuinely tied to the road qualify; none seeded yet — membership beats vibes |
 | Wave 3 QIDs | ashoka/akbar/mughal-empire only | High-confidence only; omission beats guessing, enrich tripwire verifies later |
+| People genres | `person_role` enum IS the genre system | No parallel taxonomy to drift; new genre = deliberate migration, nuance via multiple memberships |
+| Lens vs facets | Lens dims, facets filter | A lens is a spotlight on the whole world; facets narrow the people query — collapsing them would lose one or the other semantics |
+| Person coords | Place of principal activity, one point | Court/workshop/school, not birthplace, not itinerary; omit when no single place is honest (coordless people still list in the panel) |
+| Silk Road lens people (v2) | Xuanzang, Marco Polo, Ibn Battuta | The road's actual travelers arrived with the people wave; court figures still don't qualify |
+| Sundiata × islamic-history | NOT a member | Whether his Mali was yet meaningfully Islamic is a live scholarly debate; the lens claim starts with Mansa Musa |
+| People-view labels | Stars labeled at imp ≤ 2, People view only | In Both, heartland serifs own the type layer; the Shining panel names everyone regardless |

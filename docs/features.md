@@ -68,6 +68,34 @@ Every entity page shows "what else was happening":
   entries at 40% opacity when a lens is active.
 - `?lens=` ghosts circles/pulses: ALPHA ONLY (size unchanged), stroke floor
   ~0.3 so outlines stay legible.
+- **View modes** (`?view=people|both`, pill row above the canvas; absent =
+  the classic empires view): People renders the humans of the age as
+  four-point pigment **stars** at their place of principal activity
+  (`people.lat/lng/place`, aggregated by `getGlobePeople`), sized by
+  importance, serif-labeled at importance ≤ 2 (People view only — in Both,
+  the heartland labels own the type layer). Coincident places fan into a
+  small ring (`fanOutCoincident` — three Byzantines share Constantinople).
+  Alive-in-T uses `personAliveAt` (open death = nominal 70y, the timeline's
+  convention). People kindle and dim exactly the way empires breathe:
+  `personFade` is the SAME `lifeFade` ramp mapped over the lifespan (an open
+  death gets no dim-out; `starPeople` still drops the star at the nominal
+  bound), multiplied with the lens dim into star alpha. Event pulses flare
+  in EVERY view mode — the People view is not a dead map. Stars are
+  click-through to person pages (hit-tested before heartlands, matching
+  their paint order). A "Shining" side
+  panel lists the filtered people alive in T (place shown; people without
+  coords appear here but never as stars).
+- **People facets** (`?genre=scholar,artist&civ=<period-id>`, chips +
+  select under the view toggle, People/Both only): genre chips are the
+  `person_role` enum values present in the dataset (multi-select, ANY-of);
+  the civilization select matches ANY membership; both together AND. A
+  count ("12 of 45 people") keeps the narrowing honest. **Facets FILTER,
+  the lens DIMS** — deliberately asymmetric: a lens is a spotlight on the
+  world (members bright, rest ghosted, nothing hidden), while facets narrow
+  which people are in the view at all (they feed both the stars and the
+  Shining panel). Facets never touch lens ghosting and vice versa. All
+  params compose: `?view=&genre=&civ=&lens=&modern=`; unknown values
+  degrade silently like `?lens=`.
 - **Modern borders** (`?modern=1`, checkbox in the controls row, default
   off): overlays today's country boundaries + labels so historical reach
   reads against the modern map ("what was on Pakistan's territory in
@@ -105,9 +133,10 @@ Current lenses (defined in `content/spine/index.ts` themeDefs):
 - **islamic-history** — spans FOUR lanes (mena, europe via Córdoba,
   sub-saharan-africa via Mali, south-asia via Delhi Sultanate + Mughals)
   and 622–1922 with dual-calendar display (`calendarMode: "dual-hijri"`).
-- **silk-road** — periods only + two events (Talas, Marco Polo's journey);
-  deliberately no people in v1 (membership declared in
-  `silk-road-events.ts`).
+- **silk-road** — five periods, two events (Talas, Marco Polo's journey),
+  and — since the people-on-globe wave — the three people genuinely tied to
+  the road: Xuanzang, Marco Polo, Ibn Battuta (declared in their home
+  modules; court figures still don't qualify).
 - **subcontinent** — Maurya through the Mughals, incl. Gupta/Aryabhata
   (memberships declared in the south-asia modules + `world.ts`).
 
@@ -153,4 +182,9 @@ Structural edge cases the format has PROVEN (don't regress them):
    density. Current choice is deliberate (lens ≠ filter).
 4. **Globe label collisions** — heartland labels can overlap when centers
    are close (Byzantine/Ottoman share Constantinople). Acceptable at
-   current density; needs a nudge algorithm eventually.
+   current density; needs a nudge algorithm eventually. Star labels in the
+   People view inherit the same open decision (fan-out separates the stars
+   themselves, but two labels a degree apart can still overprint).
+5. **Facets on the timeline people strip** — the genre/civilization facets
+   exist only on the globe for now; extending them to the timeline strip is
+   deliberately deferred until the globe UX settles.

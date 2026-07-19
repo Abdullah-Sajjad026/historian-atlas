@@ -42,7 +42,25 @@ export const delhiSultanate: SpineModule = {
       importance: 2,
       influence:
         "The first and only woman to sit on the throne of Delhi, ruling in her own name against the nobility's opposition.",
+      lat: 28.65,
+      lng: 77.23,
+      place: "Delhi",
       periods: [{ periodId: "delhi-sultanate", role: "ruler" }],
+    },
+    {
+      id: "ibn-battuta",
+      name: "Ibn Battuta",
+      birthYear: 1304,
+      deathYear: 1369,
+      deathCertainty: "circa",
+      importance: 1,
+      influence:
+        "Three decades and 120,000 kilometers of travels across the Islamic world and beyond; served years as a qadi in Delhi mid-journey.",
+      wikidataQid: "Q7331", // best-effort — enrich tripwire verifies
+      lat: 28.65,
+      lng: 77.23,
+      place: "Delhi",
+      periods: [{ periodId: "delhi-sultanate", role: "explorer" }],
     },
   ],
 
@@ -69,8 +87,12 @@ export const delhiSultanate: SpineModule = {
     },
     "islamic-history": {
       periods: ["delhi-sultanate"],
-      people: ["razia-sultana"],
+      people: ["razia-sultana", "ibn-battuta"],
       events: ["timur-sacks-delhi"],
+    },
+    "silk-road": {
+      // The road's other great traveler, counterpart to Marco Polo.
+      people: ["ibn-battuta"],
     },
   },
 };

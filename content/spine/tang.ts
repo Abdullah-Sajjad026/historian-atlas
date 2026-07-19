@@ -40,6 +40,9 @@ export const tang: SpineModule = {
       influence:
         "Co-founder and second emperor of the Tang; his reign (the 'Zhenguan era') became the classical Chinese model of good governance.",
       wikidataQid: "Q9701",
+      lat: 34.34,
+      lng: 108.94,
+      place: "Chang'an",
       periods: [{ periodId: "tang-dynasty", role: "ruler" }],
     },
     {
@@ -52,6 +55,9 @@ export const tang: SpineModule = {
       influence:
         "The only woman to rule China as emperor in her own right; expanded the examination system and the empire's reach into Central Asia.",
       wikidataQid: "Q9702",
+      lat: 34.62,
+      lng: 112.45,
+      place: "Luoyang",
       periods: [{ periodId: "tang-dynasty", role: "ruler" }],
     },
     {
@@ -63,7 +69,39 @@ export const tang: SpineModule = {
       influence:
         "Widely considered China's greatest poet; his verse chronicling the An Lushan rebellion fused personal witness with history itself.",
       wikidataQid: "Q36014",
+      lat: 34.34,
+      lng: 108.94,
+      place: "Chang'an",
       periods: [{ periodId: "tang-dynasty", role: "artist" }],
+    },
+    {
+      id: "li-bai",
+      name: "Li Bai",
+      birthYear: 701,
+      deathYear: 762,
+      importance: 2,
+      influence:
+        "One of the two great Tang poets — the romantic voice of Chinese literature.",
+      lat: 34.34,
+      lng: 108.94,
+      place: "Chang'an",
+      periods: [{ periodId: "tang-dynasty", role: "artist" }],
+    },
+    {
+      id: "xuanzang",
+      name: "Xuanzang",
+      birthYear: 602,
+      deathYear: 664,
+      importance: 2,
+      influence:
+        "Seventeen-year overland journey to India; his translations and travel record shaped Buddhism and Silk Road geography.",
+      lat: 34.34,
+      lng: 108.94,
+      place: "Chang'an",
+      periods: [
+        { periodId: "tang-dynasty", role: "explorer" },
+        { periodId: "tang-dynasty", role: "scholar" },
+      ],
     },
   ],
 
@@ -96,4 +134,11 @@ export const tang: SpineModule = {
       periodIds: ["tang-dynasty"],
     },
   ],
+
+  themeMemberships: {
+    "silk-road": {
+      // Xuanzang traveled the road itself — the lens's first Tang person.
+      people: ["xuanzang"],
+    },
+  },
 };

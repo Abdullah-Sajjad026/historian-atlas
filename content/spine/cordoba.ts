@@ -37,7 +37,24 @@ export const cordoba: SpineModule = {
       influence:
         "Proclaimed the Caliphate of Córdoba in 929, breaking with Baghdad; under him al-Andalus reached its political and cultural height.",
       wikidataQid: "Q182865",
+      lat: 37.88,
+      lng: -4.78,
+      place: "Córdoba",
       periods: [{ periodId: "umayyads-of-cordoba", role: "ruler" }],
+    },
+    {
+      id: "al-zahrawi",
+      name: "Al-Zahrawi",
+      birthYear: 936,
+      birthCertainty: "circa",
+      deathYear: 1013,
+      importance: 2,
+      influence:
+        "Father of modern surgery; his illustrated Kitab al-Tasrif was Europe's surgical textbook for five hundred years.",
+      lat: 37.88,
+      lng: -4.78,
+      place: "Córdoba",
+      periods: [{ periodId: "umayyads-of-cordoba", role: "scholar" }],
     },
   ],
   events: [
@@ -57,7 +74,7 @@ export const cordoba: SpineModule = {
   themeMemberships: {
     "islamic-history": {
       periods: ["umayyads-of-cordoba"],
-      people: ["abd-al-rahman-iii"],
+      people: ["abd-al-rahman-iii", "al-zahrawi"],
       events: ["abd-al-rahman-crosses-to-iberia"],
     },
   },

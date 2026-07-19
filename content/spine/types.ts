@@ -46,7 +46,14 @@ export interface SpinePerson {
   influence: string; // one line: why this person matters
   summary?: string;
   wikidataQid?: string;
-  /** Memberships: which periods, in what role. */
+  /** Place of principal activity — where this person shines on the globe's
+   *  People view. One honest point (court, workshop, school), NOT a
+   *  birthplace and NOT an itinerary; omit if no single place is honest. */
+  lat?: number;
+  lng?: number;
+  place?: string;
+  /** Memberships: which periods, in what role. Roles double as the People
+   *  view's GENRE facet — keep the enum stable; new roles need a migration. */
   periods: Array<{
     periodId: string;
     role:
